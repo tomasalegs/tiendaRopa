@@ -6,7 +6,10 @@ const schema = a.schema({
     nombre: a.string(),
     pinSecreto: a.string(),
     estado: a.string(),
-  }).authorization(allow => [allow.publicApiKey(), allow.authenticated()]),
+  }).authorization(allow => [
+    allow.publicApiKey(),
+    allow.authenticated()
+  ]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
