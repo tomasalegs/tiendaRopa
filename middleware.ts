@@ -6,7 +6,7 @@ export function middleware(request: NextRequest) {
 
   // AWS Cognito genera múltiples cookies. Buscamos si existe alguna que valide la sesión.
   const cookies = request.cookies.getAll();
-  const isAuthenticated = cookies.some(cookie => 
+  const isAuthenticated = cookies.some(cookie =>
     cookie.name.includes('CognitoIdentityServiceProvider')
   );
 
@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
   if (isAuthenticated) {
     // (Futuro) Aquí extraeremos el rol real del token JWT.
     // Por ahora, como eres tú, te damos rol de 'Admins' para evitar bloqueos.
-    const userRole = 'Admins'; 
+    const userRole: string = 'Admins';
 
     // Regla A: Si un Repartidor intenta entrar al panel financiero/admin
     if (userRole === 'Repartidores' && path.startsWith('/admin')) {
@@ -33,6 +33,6 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/admin/:path*',
-    '/entregar/:path*',
+    // '/entregar/:path*',
   ],
 };

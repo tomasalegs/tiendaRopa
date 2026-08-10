@@ -1,90 +1,156 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import { Amplify } from "aws-amplify";
+import { generateClient } from "aws-amplify/data";
+import outputs from "@/amplify_outputs.json";
+import type { Schema } from "@/amplify/data/resource";
+
+Amplify.configure(outputs);
+
+const client = generateClient<Schema>();
 
 export default function EntregarPage() {
-  const [orderIdentifier, setOrderIdentifier] = useState("");
+  const [orderId, setOrderId] = useState("");
   const [pin, setPin] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleValidate = async (e: FormEvent) => {
     e.preventDefault();
-    console.log("Validando código...", { orderIdentifier, pin });
+    setLoading(true);
+
+    try {
+      const { data: items, errors } = await client.models.Product.list({
+        filter: { id: { eq: orderId.trim() } },
+        authMode: 'apiKey',
+      });
+
+      if (errors) {
+        console.error("GraphQL Errors:", errors);
+        alert("Error de conexión con la base de datos");
+        return;
+      }
+
+      if (!items || items.length === 0) {
+        alert("Error: Orden no encontrada en el sistema");
+        return;
+      }
+
+      const prenda = items[0];
+      const pinBD = String(prenda.pinSecreto || "").trim();
+      const pinIngresado = String(pin || "").trim();
+
+      if (pinBD === pinIngresado) {
+        await client.models.Product.update(
+          {
+            id: prenda.id,
+            estado: "Entregado",
+          },
+          { authMode: 'apiKey' }
+        );
+
+        alert("¡Prenda Entregada y registrada con Éxito!");
+        setOrderId("");
+        setPin("");
+      } else {
+        alert("Error: Código incorrecto");
+      }
+    } catch (err) {
+      console.error("Error al validar entrega:", err);
+      alert("Ocurrió un error inesperado al consultar la base de datos.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md mx-auto">
-        {/* Encabezado */}
-        <div className="text-center mb-8">
-          <span className="inline-block px-3 py-1 text-xs font-semibold text-purple-700 bg-purple-100 rounded-full mb-2">
-            Panel de Reparto
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-            Validación de Entrega
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-sm bg-zinc-900 rounded-xl border border-purple-500/30 shadow-[0_0_25px_rgba(168,85,247,0.15)] p-6 sm:p-8">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-black text-purple-400 tracking-widest drop-shadow-[0_2px_10px_rgba(168,85,247,0.5)]">
+            VALIDACIÓN
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Ingresa los datos para confirmar la entrega del pedido
+          <p className="text-xs text-zinc-500 tracking-wider mt-1 uppercase font-medium">
+            Confirmación de Entrega
           </p>
         </div>
 
-        {/* Tarjeta del Formulario */}
-        <div className="bg-white rounded-2xl shadow-md border border-gray-100 p-6 sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="orderIdentifier"
-                className="block text-sm font-semibold text-gray-700 mb-2"
-              >
-                ID de la Orden o Nombre
-              </label>
-              <input
-                id="orderIdentifier"
-                type="text"
-                value={orderIdentifier}
-                onChange={(e) => setOrderIdentifier(e.target.value)}
-                placeholder="Ej. ORD-1024 o Juan Pérez"
-                required
-                className="w-full px-4 py-3.5 text-base text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-white outline-none transition-all"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="pin"
-                className="block text-sm font-semibold text-gray-700 mb-2"
-              >
-                PIN Secreto
-              </label>
-              <input
-                id="pin"
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="• • • •"
-                required
-                className="w-full px-4 py-3.5 text-center text-2xl font-bold tracking-widest text-gray-900 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-600 focus:border-transparent focus:bg-white outline-none transition-all placeholder:text-gray-400 placeholder:tracking-normal placeholder:text-lg"
-              />
-              <p className="text-xs text-gray-400 mt-1.5 text-center">
-                Pide el código de seguridad de 4 a 6 dígitos al cliente
-              </p>
-            </div>
-
-            <button
-              type="submit"
-              className="w-full py-3.5 px-4 bg-purple-600 hover:bg-purple-700 active:scale-[0.99] text-white font-bold rounded-xl shadow-lg shadow-purple-600/30 transition-all cursor-pointer text-base"
+        <form onSubmit={handleValidate} className="space-y-5">
+          <div>
+            <label
+              htmlFor="orderId"
+              className="block text-xs font-semibold uppercase tracking-wider text-purple-300 mb-2"
             >
-              Validar Código
-            </button>
-          </form>
-        </div>
+              ID de Orden
+            </label>
+            <input
+              id="orderId"
+              type="text"
+              value={orderId}
+              onChange={(e) => setOrderId(e.target.value)}
+              placeholder="Ej. ORD-0099"
+              required
+              disabled={loading}
+              className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-purple-100 placeholder:text-zinc-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50 transition-all text-sm"
+            />
+          </div>
 
-        {/* Pie informativo */}
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Sistema de entregas seguras &copy; Y2K Store
-        </p>
+          <div>
+            <label
+              htmlFor="pin"
+              className="block text-xs font-semibold uppercase tracking-wider text-purple-300 mb-2"
+            >
+              PIN Secreto
+            </label>
+            <input
+              id="pin"
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="••••"
+              required
+              disabled={loading}
+              className="w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-purple-100 placeholder:text-zinc-700 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 disabled:opacity-50 transition-all text-center text-3xl font-mono tracking-[0.5em]"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3.5 px-4 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-[0_0_15px_rgba(192,38,211,0.4)] transition-all cursor-pointer text-sm tracking-wider uppercase flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <svg
+                  className="animate-spin h-5 w-5 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
+                </svg>
+                <span>VERIFICANDO...</span>
+              </>
+            ) : (
+              "VERIFICAR CÓDIGO"
+            )}
+          </button>
+        </form>
       </div>
-    </main>
+    </div>
   );
 }
