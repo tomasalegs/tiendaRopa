@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Amplify } from 'aws-amplify';
 import { generateClient } from 'aws-amplify/data';
 import type { Schema } from '@/amplify/data/resource';
-import outputs from '../../amplify_outputs.json';
+import outputs from '@/amplify_outputs.json';
 
 // 1. Configuramos Amplify con las credenciales de tu backend
 Amplify.configure(outputs);
@@ -40,13 +40,13 @@ export default function EntregarPage() {
         return;
       }
 
-      const prenda = items[0];
+      const prenda = items[0] as unknown as Record<string, unknown>;
       const pinBD = String(prenda.pinSecreto || "").trim();
       const pinIngresado = String(pin || "").trim();
 
       // 4. Si el PIN coincide, actualizamos el estado
       if (pinBD === pinIngresado) {
-        await client.models.Product.update({
+        await (client.models.Product.update as any)({
           id: prenda.id,
           estado: "Entregado"
         }, {

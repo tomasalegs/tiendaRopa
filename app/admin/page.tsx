@@ -1,233 +1,448 @@
-"use client";
-import { useState, useEffect } from "react";
-import { Amplify } from 'aws-amplify';
-import { generateClient } from 'aws-amplify/data';
-import type { Schema } from '@/amplify/data/resource';
-import outputs from '../../amplify_outputs.json';
+'use client';
 
-Amplify.configure(outputs);
+import { useState, useEffect } from 'react';
+import { generateClient } from 'aws-amplify/data';
+import { uploadData, getUrl } from 'aws-amplify/storage';
+import type { Schema } from '@/amplify/data/resource';
+import { Authenticator } from '@aws-amplify/ui-react';
+import '@aws-amplify/ui-react/styles.css';
+
 const client = generateClient<Schema>();
 
 export default function AdminPage() {
-  const [productos, setProductos] = useState<Array<Schema['Product']['type']>>([]);
+  return (
+    <Authenticator>
+      {({ signOut }) => (
+        <AdminContent signOut={signOut} />
+      )}
+    </Authenticator>
+  );
+}
+
+function ProductImageThumbnail({ imagePath, alt }: { imagePath?: string | null; alt: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!imagePath) {
+      setUrl(null);
+      setLoading(false);
+      return;
+    }
+
+    getUrl({ path: imagePath })
+      .then((res) => {
+        if (isMounted) {
+          setUrl(res.url.toString());
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        console.error('Error al obtener URL de la imagen:', err);
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [imagePath]);
+
+  if (!imagePath) {
+    return (
+      <div className="w-10 h-10 rounded bg-slate-700 flex items-center justify-center text-[10px] text-slate-400">
+        Sin foto
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <div className="w-10 h-10 rounded bg-slate-700 animate-pulse" />;
+  }
+
+  if (!url) {
+    return (
+      <div className="w-10 h-10 rounded bg-slate-700 flex items-center justify-center text-[10px] text-red-400">
+        Error
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="w-10 h-10 rounded object-cover border border-slate-600"
+    />
+  );
+}
+
+function AdminContent({ signOut }: { signOut?: () => void }) {
+  const [products, setProducts] = useState<Schema['Product']['type'][]>([]);
   const [loading, setLoading] = useState(true);
 
   // Estados del formulario
-  const [nuevoNombre, setNuevoNombre] = useState("");
-  const [nuevaTalla, setNuevaTalla] = useState("");
-  const [nuevoColor, setNuevoColor] = useState("");
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState<number>(0);
+  const [stock, setStock] = useState<number>(1);
+  const [category, setCategory] = useState('Ropa');
+  const [gender, setGender] = useState('Unisex');
+  const [size, setSize] = useState('');
+  const [color, setColor] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+
   const [creando, setCreando] = useState(false);
   const [prendaEnEdicion, setPrendaEnEdicion] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchProductos();
-  }, []);
-
-  async function fetchProductos() {
+  async function fetchProducts() {
     try {
-      const { data } = await client.models.Product.list({ authMode: 'apiKey' });
-      setProductos(data);
+      const { data: items } = await client.models.Product.list();
+      if (items) {
+        setProducts(items.filter((item) => item !== null && item !== undefined) as Schema['Product']['type'][]);
+      }
     } catch (error) {
-      console.error("Error cargando inventario:", error);
+      console.error('Error al cargar productos:', error);
     } finally {
       setLoading(false);
     }
   }
 
-  const handleEliminar = async (id: string) => {
-    try {
-      await client.models.Product.delete({ id });
-      await fetchProductos();
-    } catch (error) {
-      console.error("Error al eliminar la prenda:", error);
-    }
-  };
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
-  const handleEditar = (prenda: Schema['Product']['type']) => {
-    setNuevoNombre(prenda.nombre || "");
-    setNuevaTalla(prenda.talla || "");
-    setNuevoColor(prenda.color || "");
-    setPrendaEnEdicion(prenda.id);
-  };
-
-  const cancelarEdicion = () => {
-    setNuevoNombre("");
-    setNuevaTalla("");
-    setNuevoColor("");
-    setPrendaEnEdicion(null);
-  };
-
-  async function handleCrearPrenda(e: React.FormEvent) {
+  async function handleGuardarPrenda(e: React.FormEvent) {
     e.preventDefault();
     setCreando(true);
 
     try {
+      let finalImageUrl = existingImageUrl;
+
+      if (file) {
+        setSubiendoImagen(true);
+        const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+        const imagePath = `product-images/${fileName}`;
+        await uploadData({
+          path: imagePath,
+          data: file,
+        }).result;
+        finalImageUrl = imagePath;
+        setSubiendoImagen(false);
+      }
+
       if (prendaEnEdicion) {
         await client.models.Product.update({
           id: prendaEnEdicion,
-          nombre: nuevoNombre,
-          talla: nuevaTalla,
-          color: nuevoColor,
+          name,
+          price: Number(price),
+          stock: Number(stock),
+          category,
+          gender,
+          size,
+          color,
+          imageUrl: finalImageUrl,
         });
+        setPrendaEnEdicion(null);
       } else {
-        const idAleatorio = `Y2K-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-        const pinAleatorio = Math.floor(1000 + Math.random() * 9000).toString();
-
         await client.models.Product.create({
-          id: idAleatorio,
-          nombre: nuevoNombre,
-          pinSecreto: pinAleatorio,
-          estado: 'Disponible',
-          talla: nuevaTalla,
-          color: nuevoColor
+          name,
+          price: Number(price),
+          stock: Number(stock),
+          category,
+          gender,
+          size,
+          color,
+          imageUrl: finalImageUrl,
+          isAvailable: true,
         });
       }
 
-      // Limpiar formulario y resetear edición
-      setNuevoNombre("");
-      setNuevaTalla("");
-      setNuevoColor("");
-      setPrendaEnEdicion(null);
+      setName('');
+      setPrice(0);
+      setStock(1);
+      setCategory('Ropa');
+      setGender('Unisex');
+      setSize('');
+      setColor('');
+      setFile(null);
+      setExistingImageUrl(null);
 
-      // Recargar tabla
-      await fetchProductos();
+      await fetchProducts();
     } catch (error) {
-      console.error(prendaEnEdicion ? "Error al actualizar la prenda:" : "Error al crear la prenda:", error);
+      console.error('Error al guardar el producto:', error);
     } finally {
       setCreando(false);
+      setSubiendoImagen(false);
+    }
+  }
+
+  function prepararEdicion(product: Schema['Product']['type']) {
+    if (!product) return;
+    setPrendaEnEdicion(product.id);
+    setName(product.name || '');
+    setPrice(product.price ?? 0);
+    setStock(product.stock ?? 1);
+    setCategory(product.category || 'Ropa');
+    setGender(product.gender || 'Unisex');
+    setSize(product.size || '');
+    setColor(product.color || '');
+    setExistingImageUrl(product.imageUrl || null);
+    setFile(null);
+  }
+
+  async function eliminarPrenda(id: string) {
+    if (!id) return;
+    if (confirm('¿Estás seguro de eliminar este producto del inventario?')) {
+      try {
+        await client.models.Product.delete({ id });
+        await fetchProducts();
+      } catch (error) {
+        console.error('Error al eliminar el producto:', error);
+      }
     }
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 p-8 font-sans flex flex-col items-center">
-      <h1 className="text-purple-400 font-black text-2xl text-center tracking-widest mb-8 drop-shadow-[0_0_8px_rgba(168,85,247,0.6)]">
-        CENTRO DE COMANDO
-        <span className="block text-zinc-500 text-[10px] tracking-widest mt-2 font-normal">INVENTARIO GLOBAL</span>
-      </h1>
+    <div className="min-h-screen bg-slate-900 text-white p-8">
+      <div className="max-w-6xl mx-auto flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Y2K Admin — Centro de Control</h1>
+        <button
+          onClick={signOut}
+          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-sm font-semibold transition"
+        >
+          Cerrar Sesión
+        </button>
+      </div>
 
-      {/* Formulario de Ingreso / Edición */}
-      <form onSubmit={handleCrearPrenda} className="bg-zinc-900 border border-purple-500/30 p-6 rounded-xl w-full max-w-5xl mb-8 flex flex-wrap md:flex-nowrap gap-4 items-end shadow-[0_0_15px_rgba(168,85,247,0.05)]">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-purple-400 text-xs font-mono mb-2 tracking-widest">PRENDA</label>
-          <input
-            type="text"
-            required
-            placeholder="Ej: PANTALÓN CARGO"
-            value={nuevoNombre}
-            onChange={(e) => setNuevoNombre(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-700 text-purple-100 p-3 rounded focus:outline-none focus:border-purple-500 uppercase font-mono text-sm transition-colors"
-          />
-        </div>
-        <div className="w-full md:w-32">
-          <label className="block text-purple-400 text-xs font-mono mb-2 tracking-widest">TALLA</label>
-          <input
-            type="text"
-            placeholder="Ej: M o 42"
-            value={nuevaTalla}
-            onChange={(e) => setNuevaTalla(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-700 text-purple-100 p-3 rounded focus:outline-none focus:border-purple-500 uppercase font-mono text-sm transition-colors"
-          />
-        </div>
-        <div className="w-full md:w-40">
-          <label className="block text-purple-400 text-xs font-mono mb-2 tracking-widest">COLOR</label>
-          <input
-            type="text"
-            placeholder="Ej: NEGRO"
-            value={nuevoColor}
-            onChange={(e) => setNuevoColor(e.target.value)}
-            className="w-full bg-zinc-950 border border-zinc-700 text-purple-100 p-3 rounded focus:outline-none focus:border-purple-500 uppercase font-mono text-sm transition-colors"
-          />
-        </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <button
-            type="submit"
-            disabled={creando || !nuevoNombre}
-            className={`w-full md:w-auto font-black px-6 py-3 rounded transition-all disabled:bg-zinc-700 disabled:text-zinc-500 text-white disabled:drop-shadow-none ${
-              prendaEnEdicion
-                ? "bg-cyan-600 hover:bg-cyan-500 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]"
-                : "bg-purple-600 hover:bg-purple-500 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]"
-            }`}
-          >
-            {creando
-              ? prendaEnEdicion
-                ? "GUARDANDO..."
-                : "CREANDO..."
-              : prendaEnEdicion
-              ? "GUARDAR CAMBIOS"
-              : "AGREGAR"}
-          </button>
+      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="bg-slate-800 p-6 rounded-lg shadow-md md:col-span-1 h-fit">
+          <h2 className="text-xl font-semibold mb-4 text-cyan-400">
+            {prendaEnEdicion ? 'Editar Producto' : 'Agregar al Inventario'}
+          </h2>
+          <form onSubmit={handleGuardarPrenda} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Nombre del producto</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white"
+                placeholder="Ej. Zapatillas Converse / Parka"
+              />
+            </div>
 
-          {prendaEnEdicion && (
-            <button
-              type="button"
-              onClick={cancelarEdicion}
-              className="bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 hover:border-red-500 px-4 py-3 rounded font-bold transition-colors"
-            >
-              CANCELAR
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium mb-1">Precio ($)</label>
+                <input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(Number(e.target.value))}
+                  required
+                  className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Stock</label>
+                <input
+                  type="number"
+                  value={stock}
+                  onChange={(e) => setStock(Number(e.target.value))}
+                  required
+                  className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-sm font-medium mb-1">Categoría</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white"
+                >
+                  <option value="Ropa">Ropa</option>
+                  <option value="Zapatillas">Zapatillas</option>
+                  <option value="Carteras">Carteras</option>
+                  <option value="Colonias">Colonias</option>
+                  <option value="Accesorios">Accesorios</option>
+                  <option value="Gorros">Gorros / Jockeis</option>
+                  <option value="Cosmética">Cosmética</option>
+                  <option value="Otro">Otro</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Género</label>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white"
+                >
+                  <option value="Hombre">Hombre</option>
+                  <option value="Mujer">Mujer</option>
+                  <option value="Unisex">Unisex</option>
+                  <option value="Infantil">Infantil</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 items-end">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {category === 'Colonias' || category === 'Cosmética'
+                    ? 'Volumen o Medida (Opc.)'
+                    : 'Talla (Opc.)'}
+                </label>
+                <input
+                  type="text"
+                  value={size}
+                  onChange={(e) => setSize(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white"
+                  placeholder={
+                    category === 'Colonias' || category === 'Cosmética'
+                      ? 'Ej. 100ml'
+                      : 'Ej. M, 42'
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Color (Opc.)</label>
+                <input
+                  type="text"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="w-full bg-slate-700 border border-slate-600 rounded p-2 text-white"
+                  placeholder="Ej. Negro"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Foto del producto (Opc.)</label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    setFile(e.target.files[0]);
+                  }
+                }}
+                className="w-full text-sm text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-slate-700 file:text-cyan-400 hover:file:bg-slate-600 cursor-pointer bg-slate-700/50 p-1 rounded border border-slate-600"
+              />
+              {existingImageUrl && !file && (
+                <p className="text-xs text-slate-400 mt-1">
+                  Tiene una imagen asignada actualmente. Selecciona otra si deseas reemplazarla.
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={creando || subiendoImagen}
+                className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-semibold p-2 rounded transition disabled:opacity-50"
+              >
+                {subiendoImagen
+                  ? 'Subiendo foto...'
+                  : creando
+                  ? 'Guardando...'
+                  : prendaEnEdicion
+                  ? 'Actualizar'
+                  : 'Crear Producto'}
+              </button>
+              {prendaEnEdicion && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrendaEnEdicion(null);
+                    setName('');
+                    setPrice(0);
+                    setStock(1);
+                    setCategory('Ropa');
+                    setGender('Unisex');
+                    setSize('');
+                    setColor('');
+                    setFile(null);
+                    setExistingImageUrl(null);
+                  }}
+                  className="bg-slate-600 hover:bg-slate-700 text-white px-3 py-2 rounded"
+                >
+                  X
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+
+        <div className="bg-slate-800 p-6 rounded-lg shadow-md md:col-span-2 overflow-x-auto">
+          <h2 className="text-xl font-semibold mb-4">Inventario Actual</h2>
+          {loading ? (
+            <p className="text-slate-400">Cargando base de datos...</p>
+          ) : products.filter((p) => p !== null && p !== undefined).length === 0 ? (
+            <p className="text-slate-400">No hay productos registrados en esta categoría todavía.</p>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-slate-700 text-slate-400 text-sm">
+                  <th className="p-2">Foto</th>
+                  <th className="p-2">Producto</th>
+                  <th className="p-2">Categoría</th>
+                  <th className="p-2">Precio</th>
+                  <th className="p-2">Stock</th>
+                  <th className="p-2">Detalles</th>
+                  <th className="p-2 text-right">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products
+                  .filter((p) => p !== null && p !== undefined)
+                  .map((p, index) => (
+                    <tr key={p?.id || index} className="border-b border-slate-700/50 hover:bg-slate-700/20">
+                      <td className="p-2">
+                        <ProductImageThumbnail imagePath={p?.imageUrl} alt={p?.name || 'Producto'} />
+                      </td>
+                      <td className="p-2 font-medium">{p?.name || 'Producto sin nombre'}</td>
+                      <td className="p-2">
+                        <span className="bg-slate-700 text-xs px-2 py-1 rounded text-cyan-300">
+                          {p?.category || 'Sin categoría'}
+                        </span>
+                      </td>
+                      <td className="p-2">${p?.price ?? 0}</td>
+                      <td className="p-2">{p?.stock ?? 0}</td>
+                      <td className="p-2 text-sm text-slate-300">
+                        {p?.size
+                          ? p?.category === 'Colonias' || p?.category === 'Cosmética'
+                            ? `Volumen: ${p.size} `
+                            : `Talla: ${p.size} `
+                          : ''}
+                        {p?.color ? `Color: ${p.color} ` : ''}
+                        {p?.gender ? `Género: ${p.gender}` : ''}
+                        {!p?.size && !p?.color && !p?.gender ? '-' : ''}
+                      </td>
+                      <td className="p-2 text-right space-x-2">
+                        <button
+                          onClick={() => prepararEdicion(p)}
+                          className="text-cyan-400 hover:underline text-sm font-medium"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => p?.id && eliminarPrenda(p.id)}
+                          className="text-red-400 hover:underline text-sm font-medium"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
+                    </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
-      </form>
-
-      {/* Tabla de Inventario */}
-      <div className="w-full max-w-5xl bg-zinc-900 rounded-xl border border-purple-500/30 overflow-x-auto shadow-[0_0_25px_rgba(168,85,247,0.1)]">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr>
-              <th className="font-mono text-xs text-purple-400 border-b border-purple-500/30 p-4 whitespace-nowrap">ID ORDEN</th>
-              <th className="font-mono text-xs text-purple-400 border-b border-purple-500/30 p-4">PRENDA</th>
-              <th className="font-mono text-xs text-purple-400 border-b border-purple-500/30 p-4">TALLA</th>
-              <th className="font-mono text-xs text-purple-400 border-b border-purple-500/30 p-4">COLOR</th>
-              <th className="font-mono text-xs text-purple-400 border-b border-purple-500/30 p-4 whitespace-nowrap">PIN SECRETO</th>
-              <th className="font-mono text-xs text-purple-400 border-b border-purple-500/30 p-4">ESTADO</th>
-              <th className="font-mono text-xs text-purple-400 border-b border-purple-500/30 p-4 whitespace-nowrap">ACCIONES</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="font-mono text-sm text-purple-400 p-8 text-center animate-pulse tracking-widest">
-                  CARGANDO BASE DE DATOS...
-                </td>
-              </tr>
-            ) : productos.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="font-mono text-sm text-zinc-500 p-8 text-center tracking-widest">
-                  NO HAY PRENDAS EN EL INVENTARIO.
-                </td>
-              </tr>
-            ) : (
-              productos.map((item) => (
-                <tr key={item.id} className="hover:bg-zinc-800/50 transition-colors">
-                  <td className="font-mono text-sm text-zinc-300 p-4 border-b border-zinc-800 whitespace-nowrap">{item.id}</td>
-                  <td className="font-mono text-sm text-zinc-300 p-4 border-b border-zinc-800 uppercase">{item.nombre}</td>
-                  <td className="font-mono text-sm text-zinc-400 p-4 border-b border-zinc-800 uppercase">{item.talla || '-'}</td>
-                  <td className="font-mono text-sm text-zinc-400 p-4 border-b border-zinc-800 uppercase">{item.color || '-'}</td>
-                  <td className="font-mono text-sm text-zinc-500 p-4 border-b border-zinc-800 tracking-widest">{item.pinSecreto}</td>
-                  <td className={`font-mono text-sm p-4 border-b border-zinc-800 uppercase font-bold ${item.estado === 'Entregado' ? 'text-emerald-400' : 'text-fuchsia-400'}`}>
-                    {item.estado}
-                  </td>
-                  <td className="p-4 border-b border-zinc-800 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <button
-                        onClick={() => handleEditar(item)}
-                        className="text-cyan-400 hover:text-cyan-300 font-bold transition-colors mr-3 font-mono text-xs"
-                      >
-                        EDITAR
-                      </button>
-                      <button
-                        onClick={() => handleEliminar(item.id)}
-                        className="text-red-500 hover:text-red-400 font-bold transition-colors font-mono text-xs"
-                      >
-                        ELIMINAR
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
       </div>
     </div>
   );
