@@ -3,124 +3,50 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { generateClient } from 'aws-amplify/data';
-import { getUrl } from 'aws-amplify/storage';
+import { StorageImage } from '@aws-amplify/ui-react-storage';
+import '@aws-amplify/ui-react/styles.css';
 import type { Schema } from '@/amplify/data/resource';
+import { useCart } from '@/context/CartContext';
 
 const client = generateClient<Schema>();
 
 function PublicProductImage({ imagePath, alt }: { imagePath?: string | null; alt: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    if (!imagePath) {
-      setUrl(null);
-      setLoading(false);
-      return;
-    }
-
-    getUrl({ path: imagePath })
-      .then((res) => {
-        if (isMounted) {
-          setUrl(res.url.toString());
-          setLoading(false);
-        }
-      })
-      .catch((err) => {
-        console.error('Error al obtener imagen:', err);
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [imagePath]);
-
   if (!imagePath) {
     return (
-      <div className="w-full aspect-square bg-slate-800/80 flex flex-col items-center justify-center text-slate-500 rounded-t-xl">
-        <svg className="w-12 h-12 mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div className="w-full aspect-square bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative border-b border-cyan-500/20 group-hover:border-cyan-500/40 transition-colors">
+        {/* Marcadores de esquina Cyber-Y2K */}
+        <div className="absolute top-2 left-2 text-[9px] font-mono text-cyan-500/40 select-none">◤</div>
+        <div className="absolute top-2 right-2 text-[9px] font-mono text-cyan-500/40 select-none">◥</div>
+        <div className="absolute bottom-2 left-2 text-[9px] font-mono text-cyan-500/40 select-none">◣</div>
+        <div className="absolute bottom-2 right-2 text-[9px] font-mono text-cyan-500/40 select-none">◢</div>
+        
+        <svg className="w-10 h-10 mb-2 opacity-30 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span className="text-xs uppercase tracking-wider font-mono text-slate-400">Sin imagen</span>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="w-full aspect-square bg-slate-800 animate-pulse rounded-t-xl flex items-center justify-center">
-        <span className="text-xs text-slate-500 font-mono">Cargando foto...</span>
-      </div>
-    );
-  }
-
-  if (!url) {
-    return (
-      <div className="w-full aspect-square bg-slate-800 flex items-center justify-center text-red-400 text-xs rounded-t-xl">
-        Error al cargar imagen
+        <span className="text-[10px] uppercase tracking-widest font-mono text-slate-400">NO_SIGNAL // SIN IMAGEN</span>
       </div>
     );
   }
 
   return (
-    <div className="w-full aspect-square overflow-hidden rounded-t-xl bg-slate-950 relative">
-      <img
-        src={url}
+    <div className="w-full aspect-square overflow-hidden bg-slate-950 relative flex items-center justify-center border-b border-cyan-500/20 group-hover:border-cyan-500/50 transition-colors">
+      {/* Retículas y esquinas técnicas 'Tech Card' */}
+      <div className="absolute top-2 left-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◤</div>
+      <div className="absolute top-2 right-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◥</div>
+      <div className="absolute bottom-2 left-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◣</div>
+      <div className="absolute bottom-2 right-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◢</div>
+      
+      {/* Sombra de viñeta técnica */}
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/30 z-0 pointer-events-none" />
+
+      <StorageImage
+        path={imagePath}
         alt={alt}
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        loading="lazy"
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 relative z-0"
+        fallbackSrc="/favicon.ico"
       />
     </div>
-  );
-}
-
-function CartItemImage({ imagePath, alt }: { imagePath?: string | null; alt: string }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-    if (!imagePath) {
-      setUrl(null);
-      setLoading(false);
-      return;
-    }
-
-    getUrl({ path: imagePath })
-      .then((res) => {
-        if (isMounted) {
-          setUrl(res.url.toString());
-          setLoading(false);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [imagePath]);
-
-  if (!imagePath || !url) {
-    return (
-      <div className="w-14 h-14 rounded-lg bg-slate-800 flex items-center justify-center text-[10px] text-slate-500 flex-shrink-0 border border-slate-700">
-        Sin foto
-      </div>
-    );
-  }
-
-  if (loading) {
-    return <div className="w-14 h-14 rounded-lg bg-slate-800 animate-pulse flex-shrink-0" />;
-  }
-
-  return (
-    <img
-      src={url}
-      alt={alt}
-      className="w-14 h-14 rounded-lg object-cover flex-shrink-0 border border-slate-700"
-    />
   );
 }
 
@@ -132,11 +58,10 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [expandedGender, setExpandedGender] = useState<string | null>(null);
-
-  // Estados para el Carrito de Compras
-  const [cart, setCart] = useState<Schema['Product']['type'][]>([]);
-  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
+
+  // Consumir el estado y las acciones del Carrito Global
+  const { cart, setIsCartOpen, addToCart: addGlobalToCart } = useCart();
 
   useEffect(() => {
     const sub = client.models.Product.observeQuery({
@@ -163,26 +88,15 @@ export default function HomePage() {
   const categories = ['Ropa', 'Zapatillas', 'Carteras', 'Colonias', 'Accesorios', 'Gorros', 'Cosmética', 'Otro'];
   const gendersList = ['Hombre', 'Mujer', 'Unisex', 'Infantil'];
 
-  // Funciones para manipular el Carrito
-  const addToCart = (product: Schema['Product']['type']) => {
+  // Función para agregar producto al Carrito Global con feedback visual
+  const handleAddToCart = (product: Schema['Product']['type']) => {
     if (!product) return;
-    setCart((prev) => [...prev, product]);
+    addGlobalToCart(product);
     setAddedProductId(product.id);
     setTimeout(() => {
       setAddedProductId((prevId) => (prevId === product.id ? null : prevId));
     }, 1200);
   };
-
-  const removeFromCart = (indexToRemove: number) => {
-    setCart((prev) => prev.filter((_, idx) => idx !== indexToRemove));
-  };
-
-  const clearCart = () => {
-    setCart([]);
-  };
-
-  const cartTotal = cart.reduce((sum, item) => sum + Number(item?.price ?? 0), 0);
-  const formattedCartTotal = cartTotal.toLocaleString('es-CL');
 
   // Lógica de Filtrado Combinado: Categoría + Género + Búsqueda por texto con resiliencia a nulos
   const filteredProducts = products.filter((p) => {
@@ -200,13 +114,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black relative">
-      {/* Backdrop overlay para Drawer Izquierdo o Carrito Derecho */}
-      {(isSidebarOpen || isCartOpen) && (
+      {/* Backdrop overlay para Drawer Izquierdo */}
+      {isSidebarOpen && (
         <div
-          onClick={() => {
-            setIsSidebarOpen(false);
-            setIsCartOpen(false);
-          }}
+          onClick={() => setIsSidebarOpen(false)}
           className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 transition-opacity duration-300"
         />
       )}
@@ -359,133 +270,6 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </aside>
-
-      {/* Panel del Carrito de Compras (Slide-over desde la Derecha) */}
-      <aside
-        className={`fixed top-0 right-0 h-full w-96 max-w-[90vw] bg-slate-950 border-l border-slate-800 shadow-2xl z-50 flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
-          isCartOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        {/* Header del Carrito */}
-        <div className="p-5 border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse"></span>
-            <h2 className="text-base font-bold text-white tracking-wide flex items-center gap-2">
-              Mi Carrito
-              <span className="text-xs font-mono font-normal text-cyan-400 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-800/50">
-                {cart.length} {cart.length === 1 ? 'artículo' : 'artículos'}
-              </span>
-            </h2>
-          </div>
-
-          <button
-            onClick={() => setIsCartOpen(false)}
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-            aria-label="Cerrar carrito"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Lista de productos en el Carrito */}
-        <div className="p-5 overflow-y-auto flex-1 space-y-3">
-          {cart.length === 0 ? (
-            <div className="text-center py-16 space-y-4">
-              <div className="w-16 h-16 mx-auto rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-3xl shadow-inner">
-                🛒
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">Tu carrito está vacío</p>
-                <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
-                  Agrega prendas o artículos desde el catálogo para verlos aquí.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsCartOpen(false)}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-cyan-400 border border-slate-700 rounded-lg transition-colors"
-              >
-                Explorar Catálogo
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between pb-2 border-b border-slate-900">
-                <span className="text-xs uppercase tracking-wider text-slate-400 font-mono">Productos seleccionados</span>
-                <button
-                  onClick={clearCart}
-                  className="text-[11px] text-red-400 hover:underline"
-                >
-                  Vaciar carrito
-                </button>
-              </div>
-
-              {cart.map((item, idx) => {
-                const itemPrice = Number(item?.price ?? 0).toLocaleString('es-CL');
-                return (
-                  <div
-                    key={`${item?.id}-${idx}`}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-slate-900/70 border border-slate-800/80 hover:border-slate-700 transition-colors"
-                  >
-                    <CartItemImage imagePath={item?.imageUrl} alt={item?.name || 'Producto'} />
-
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-white truncate">{item?.name || 'Producto sin nombre'}</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        {item?.category || 'Sin categoría'}{item?.gender ? ` • ${item.gender}` : ''}
-                      </p>
-                      <p className="text-sm font-extrabold text-cyan-400 mt-1">${itemPrice}</p>
-                    </div>
-
-                    <button
-                      onClick={() => removeFromCart(idx)}
-                      className="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
-                      title="Eliminar artículo"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                );
-              })}
-            </>
-          )}
-        </div>
-
-        {/* Footer del Carrito con Total a Pagar y Botón de Pago */}
-        {cart.length > 0 && (
-          <div className="p-5 border-t border-slate-800 bg-slate-950 space-y-4 flex-shrink-0">
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Subtotal ({cart.length} {cart.length === 1 ? 'artículo' : 'artículos'})</span>
-                <span>${formattedCartTotal}</span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Envío</span>
-                <span className="text-emerald-400 font-medium">Por calcular</span>
-              </div>
-              <div className="flex justify-between items-baseline pt-2 border-t border-slate-800 text-sm font-bold text-white">
-                <span>Total a Pagar</span>
-                <span className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
-                  ${formattedCartTotal}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-cyan-600 via-fuchsia-600 to-purple-600 hover:from-cyan-500 hover:via-fuchsia-500 hover:to-purple-500 text-white text-sm font-extrabold uppercase tracking-wider shadow-[0_0_20px_rgba(217,70,239,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              Proceder al Pago
-            </button>
-          </div>
-        )}
       </aside>
 
       {/* Header / Navegación Superior */}
@@ -731,62 +515,96 @@ export default function HomePage() {
               const formattedPrice = Number(p?.price ?? 0).toLocaleString('es-CL');
               const isVolumenCategory = p?.category === 'Colonias' || p?.category === 'Cosmética';
               const isAdded = addedProductId === p?.id;
+              const shortId = (p?.id || '').slice(0, 8).toUpperCase();
+              const availableUnits = p?.stock ?? 1;
 
               return (
                 <div
                   key={p?.id || index}
-                  className="bg-slate-900/80 rounded-xl border border-slate-800/90 hover:border-cyan-500/50 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)] transition-all duration-300 group flex flex-col justify-between overflow-hidden"
+                  className="bg-slate-900/90 rounded-2xl border border-cyan-500/30 hover:border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.12),inset_0_0_15px_rgba(6,182,212,0.02)] hover:shadow-[0_0_25px_rgba(6,182,212,0.3),0_0_15px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col justify-between overflow-hidden relative"
                 >
-                  <div>
-                    {/* Imagen */}
-                    <PublicProductImage imagePath={p?.imageUrl} alt={p?.name || 'Producto'} />
+                  {/* Encabezado de Terminal Cyber-Y2K: Código Serial / ID del Producto */}
+                  <div className="flex items-center justify-between px-3.5 py-1.5 bg-slate-950/95 border-b border-cyan-500/20 text-[11px] font-mono tracking-wider">
+                    <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-cyan-300 transition-colors">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.9)] animate-pulse" />
+                      <span className="font-mono font-bold">SYS://REF-{shortId}</span>
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-500 group-hover:text-slate-400">
+                      STK:{availableUnits}U
+                    </span>
+                  </div>
 
-                    {/* Contenido */}
-                    <div className="p-4 space-y-2">
-                      {/* Badges de Categoría y Género */}
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/40">
-                          {p?.category || 'Sin categoría'}
+                  <div>
+                    {/* Contenedor de Imagen con Marco Sólido Técnico */}
+                    <Link href={`/producto/${p?.id}`} className="block overflow-hidden cursor-pointer">
+                      <PublicProductImage imagePath={p?.imageUrls?.[0] || p?.imageUrl} alt={p?.name || 'Producto'} />
+                    </Link>
+
+                    {/* Contenido Técnico */}
+                    <div className="p-4 space-y-2.5">
+                      {/* Badges de Categoría y Género Estilo Chip Neón */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-700/50 shadow-[0_0_8px_rgba(6,182,212,0.15)]">
+                          {p?.category || 'General'}
                         </span>
                         {p?.gender && (
-                          <span className="text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded bg-purple-950/80 text-purple-300 border border-purple-800/40">
+                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-purple-950/90 text-purple-300 border border-purple-700/50 shadow-[0_0_8px_rgba(168,85,247,0.15)]">
                             {p.gender}
+                          </span>
+                        )}
+                        {p?.brand && (
+                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-slate-800/80 text-amber-300/90 border border-amber-800/40">
+                            {p.brand}
                           </span>
                         )}
                       </div>
 
-                      {/* Nombre */}
-                      <h2 className="font-bold text-base text-white group-hover:text-cyan-400 transition-colors line-clamp-1">
-                        {p?.name || 'Producto sin nombre'}
-                      </h2>
+                      {/* Nombre con enlace a la vista de detalles */}
+                      <Link href={`/producto/${p?.id}`} className="block cursor-pointer">
+                        <h2 className="font-bold text-base text-white group-hover:text-cyan-300 transition-colors line-clamp-1 tracking-tight">
+                          {p?.name || 'Producto sin nombre'}
+                        </h2>
+                      </Link>
 
-                      {/* Detalles: Talla/Volumen & Color */}
+                      {/* Detalles Técnicos: Talla/Volumen & Color */}
                       {(p?.size || p?.color) && (
-                        <p className="text-xs text-slate-400">
-                          {p?.size ? `${isVolumenCategory ? 'Volumen:' : 'Talla:'} ${p.size}` : ''}
-                          {p?.size && p?.color ? ' • ' : ''}
-                          {p?.color ? `Color: ${p.color}` : ''}
-                        </p>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
+                          <span className="text-slate-500">SPEC:</span>
+                          {p?.size && (
+                            <span className="text-slate-300 font-semibold">
+                              {isVolumenCategory ? 'VOL' : 'SZ'}: {p.size}
+                            </span>
+                          )}
+                          {p?.size && p?.color && <span className="text-slate-600">/</span>}
+                          {p?.color && (
+                            <span className="text-slate-300">
+                              {p.color}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
 
                   {/* Footer de la Card: Precio y Botón Agregar al Carrito */}
                   <div className="p-4 pt-0 mt-auto space-y-3">
-                    <div className="flex items-baseline justify-between pt-2 border-t border-slate-800/60">
-                      <span className="text-xs text-slate-400 uppercase tracking-wider font-medium">Precio</span>
-                      <span className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
-                        ${formattedPrice}
-                      </span>
+                    <div className="flex items-baseline justify-between pt-2.5 border-t border-slate-800/80">
+                      <span className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">PRECIO</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                          ${formattedPrice}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-500">CLP</span>
+                      </div>
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => addToCart(p)}
-                      className={`w-full py-2.5 px-4 rounded-lg text-white text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                      onClick={() => handleAddToCart(p)}
+                      className={`w-full py-2.5 px-4 rounded-xl text-white text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
                         isAdded
-                          ? 'bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-[1.02]'
-                          : 'bg-gradient-to-r from-cyan-600 to-fuchsia-600 hover:from-cyan-500 hover:to-fuchsia-500 shadow-[0_0_12px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(217,70,239,0.5)] active:scale-[0.98]'
+                          ? 'bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.6)] scale-[1.02]'
+                          : 'bg-gradient-to-r from-cyan-600 via-purple-600 to-fuchsia-600 hover:from-cyan-500 hover:via-purple-500 hover:to-fuchsia-500 shadow-[0_0_12px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(217,70,239,0.5)] active:scale-[0.98]'
                       }`}
                     >
                       {isAdded ? (
@@ -798,7 +616,7 @@ export default function HomePage() {
                         </>
                       ) : (
                         <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-4 h-4 fill-none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                           </svg>
                           <span>Agregar al carrito</span>

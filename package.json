@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.15.5",
+    "@aws-amplify/ui-react-storage": "^3.18.0",
     "aws-amplify": "^6.20.0",
+    "browser-image-compression": "^2.0.2",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"

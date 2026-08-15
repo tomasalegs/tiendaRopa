@@ -11,5 +11,9 @@ export const storage = defineStorage({
       allow.authenticated.to(['read', 'write', 'delete']),
       allow.guest.to(['read']),
     ],
+    'productos/*': [
+      allow.authenticated.to(['read', 'write', 'delete']),
+      allow.guest.to(['read']),
+    ],
   }),
 });
