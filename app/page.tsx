@@ -1,19 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { Amplify } from 'aws-amplify';
+import outputs from '@/amplify_outputs.json';
 import { generateClient } from 'aws-amplify/data';
+import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth';
 import { StorageImage } from '@aws-amplify/ui-react-storage';
 import '@aws-amplify/ui-react/styles.css';
 import type { Schema } from '@/amplify/data/resource';
 import { useCart } from '@/context/CartContext';
+import ThemeToggle from '@/components/ThemeToggle';
 
+Amplify.configure(outputs, { ssr: true });
 const client = generateClient<Schema>();
 
 function PublicProductImage({ imagePath, alt }: { imagePath?: string | null; alt: string }) {
   if (!imagePath) {
     return (
-      <div className="w-full aspect-square bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative border-b border-cyan-500/20 group-hover:border-cyan-500/40 transition-colors">
+      <div className="w-full aspect-square bg-gray-900 flex flex-col items-center justify-center text-xs text-gray-500 font-mono relative border-b border-cyan-500/20 group-hover:border-cyan-500/40 transition-colors">
         {/* Marcadores de esquina Cyber-Y2K */}
         <div className="absolute top-2 left-2 text-[9px] font-mono text-cyan-500/40 select-none">◤</div>
         <div className="absolute top-2 right-2 text-[9px] font-mono text-cyan-500/40 select-none">◥</div>
@@ -23,7 +29,7 @@ function PublicProductImage({ imagePath, alt }: { imagePath?: string | null; alt
         <svg className="w-10 h-10 mb-2 opacity-30 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <span className="text-[10px] uppercase tracking-widest font-mono text-slate-400">NO_SIGNAL // SIN IMAGEN</span>
+        <span className="text-xs uppercase tracking-widest font-mono text-gray-500">NO_SIGNAL</span>
       </div>
     );
   }
@@ -50,8 +56,13 @@ function PublicProductImage({ imagePath, alt }: { imagePath?: string | null; alt
   );
 }
 
-export default function HomePage() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const isSaleFilter = searchParams?.get('ofertas') === 'true';
+
   const [products, setProducts] = useState<Schema['Product']['type'][]>([]);
+  const [banners, setBanners] = useState<Schema['MarketingBanner']['type'][]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [selectedGender, setSelectedGender] = useState<string>('Todos');
@@ -59,31 +70,196 @@ export default function HomePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [expandedGender, setExpandedGender] = useState<string | null>(null);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+
+  // Estado del usuario actual en Navbar (Dinámico)
+  const [currentUser, setCurrentUser] = useState<{
+    isLoggedIn: boolean;
+    firstName: string;
+    email: string;
+    isAdmin: boolean;
+  }>({
+    isLoggedIn: false,
+    firstName: '',
+    email: '',
+    isAdmin: false,
+  });
 
   // Consumir el estado y las acciones del Carrito Global
   const { cart, setIsCartOpen, addToCart: addGlobalToCart } = useCart();
 
+  // Detectar redirección con error de acceso denegado RBAC
   useEffect(() => {
-    const sub = client.models.Product.observeQuery({
-      filter: {
-        isAvailable: { eq: true },
-      },
-    }).subscribe({
-      next: ({ items }) => {
-        const availableItems = (items || []).filter(
-          (p) => p !== null && p !== undefined && p.isAvailable !== false
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('error') === 'access_denied') {
+        setAccessDeniedMessage(
+          'Tu cuenta no posee permisos para ingresar al Centro de Control de Administración (Roles requeridos: Super_Admin, Admin_Tienda o Logistica_Operadores).'
         );
-        setProducts(availableItems as Schema['Product']['type'][]);
-        setLoading(false);
-      },
-      error: (err) => {
-        console.error('Error al observar productos:', err);
-        setLoading(false);
-      },
-    });
-
-    return () => sub.unsubscribe();
+      }
+    }
   }, []);
+
+  // 1. Obtener sesión y nombre dinámico del usuario
+  useEffect(() => {
+    let isMounted = true;
+
+    async function checkUserSession() {
+      try {
+        const session = await fetchAuthSession();
+        const groups = (session.tokens?.accessToken?.payload['cognito:groups'] as string[]) || [];
+        const isAdmin = groups.includes('Super_Admin') || groups.includes('Admin_Tienda');
+
+        let firstName = '';
+        let email = '';
+
+        try {
+          const attributes = await fetchUserAttributes();
+          email = attributes.email || '';
+          const fullName = attributes.name || '';
+          firstName = fullName.trim() ? fullName.trim().split(' ')[0] : (email ? email.split('@')[0] : '');
+        } catch {
+          // Usuario no autenticado o sin atributos
+        }
+
+        if (isMounted) {
+          setCurrentUser({
+            isLoggedIn: !!session.tokens,
+            firstName: firstName || 'Usuario',
+            email,
+            isAdmin,
+          });
+        }
+      } catch {
+        if (isMounted) {
+          setCurrentUser({
+            isLoggedIn: false,
+            firstName: '',
+            email: '',
+            isAdmin: false,
+          });
+        }
+      }
+    }
+
+    checkUserSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // 2. Cargar Catálogo de Productos y Banners con detección dinámica de AuthMode
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadProducts() {
+      try {
+        const session = await fetchAuthSession();
+        const isAuth = session.tokens !== undefined;
+        const authMode = isAuth ? 'userPool' : 'identityPool';
+
+        const filterObj: any = {
+          isAvailable: { eq: true },
+        };
+        if (isSaleFilter) {
+          filterObj.isOnSale = { eq: true };
+        }
+
+        const { data: items, errors } = await client.models.Product.list({
+          authMode,
+          filter: filterObj,
+        });
+
+        if (errors && errors.length > 0) {
+          console.error('AppSync Errors:', errors);
+        }
+
+        if (isMounted && items) {
+          const availableItems = items.filter(
+            (p) => p !== null && p !== undefined && p.isAvailable !== false
+          );
+          setProducts(availableItems as Schema['Product']['type'][]);
+        }
+
+        // Cargar Banners Activos para el Carrusel
+        try {
+          const { data: bannerData } = await client.models.MarketingBanner.list({
+            authMode,
+            filter: {
+              isActive: { eq: true },
+            },
+          });
+          if (isMounted && bannerData) {
+            const activeBanners = bannerData.filter(Boolean) as Schema['MarketingBanner']['type'][];
+            setBanners(activeBanners);
+          }
+        } catch (bannerErr) {
+          console.warn('Error al cargar banners:', bannerErr);
+        }
+      } catch (err) {
+        console.error('Error al cargar catálogo dinámico:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadProducts();
+
+    let sub: any = null;
+    async function subscribeCatalog() {
+      try {
+        const session = await fetchAuthSession();
+        const isAuth = session.tokens !== undefined;
+        const authMode = isAuth ? 'userPool' : 'identityPool';
+
+        const filterObj: any = {
+          isAvailable: { eq: true },
+        };
+        if (isSaleFilter) {
+          filterObj.isOnSale = { eq: true };
+        }
+
+        sub = client.models.Product.observeQuery({
+          authMode,
+          filter: filterObj,
+        }).subscribe({
+          next: ({ items, isSynced }) => {
+            if (!isMounted) return;
+            const availableItems = (items || []).filter(
+              (p) => p !== null && p !== undefined && p.isAvailable !== false
+            );
+            setProducts(availableItems as Schema['Product']['type'][]);
+            if (isSynced) setLoading(false);
+          },
+          error: (err) => {
+            console.error('AppSync ObserveQuery Error:', err);
+            if (isMounted) setLoading(false);
+          },
+        });
+      } catch (err) {
+        console.warn('ObserveQuery no inicializado, usando carga directa:', err);
+      }
+    }
+
+    subscribeCatalog();
+
+    return () => {
+      isMounted = false;
+      if (sub && typeof sub.unsubscribe === 'function') {
+        sub.unsubscribe();
+      }
+    };
+  }, [isSaleFilter]);
+
+  // 3. Rotación Automática del Carrusel cada 5 segundos
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % banners.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [banners.length]);
 
   const categories = ['Ropa', 'Zapatillas', 'Carteras', 'Colonias', 'Accesorios', 'Gorros', 'Cosmética', 'Otro'];
   const gendersList = ['Hombre', 'Mujer', 'Unisex', 'Infantil'];
@@ -98,9 +274,10 @@ export default function HomePage() {
     }, 1200);
   };
 
-  // Lógica de Filtrado Combinado: Categoría + Género + Búsqueda por texto con resiliencia a nulos
+  // Lógica de Filtrado Combinado: Ofertas + Categoría + Género + Búsqueda por texto con resiliencia a nulos
   const filteredProducts = products.filter((p) => {
     if (!p) return false;
+    const matchSale = !isSaleFilter || p?.isOnSale === true;
     const matchCategory = selectedCategory === 'Todas' || p?.category === selectedCategory;
     const matchGender = selectedGender === 'Todos' || p?.gender === selectedGender;
     const matchSearch =
@@ -109,11 +286,11 @@ export default function HomePage() {
       (p?.category?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
       (p?.color?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
       (p?.brand?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false);
-    return matchCategory && matchGender && matchSearch;
+    return matchSale && matchCategory && matchGender && matchSearch;
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-black relative transition-colors duration-200">
       {/* Backdrop overlay para Drawer Izquierdo */}
       {isSidebarOpen && (
         <div
@@ -124,26 +301,30 @@ export default function HomePage() {
 
       {/* Menú Lateral Desplegable (Off-Canvas Drawer Izquierdo) */}
       <aside
-        className={`fixed top-0 left-0 h-full w-80 max-w-[88vw] bg-slate-950 border-r border-slate-800 shadow-2xl z-50 flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-full w-80 max-w-[88vw] bg-white dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col justify-between transform transition-transform duration-300 ease-in-out ${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex flex-col h-full overflow-hidden">
-          {/* Encabezado Superior con "¡Hola, Tomás!" y botón X */}
-          <div className="p-5 border-b border-slate-800/90 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 flex items-center justify-between flex-shrink-0">
+          {/* Encabezado Superior Dinámico con avatar y botón X */}
+          <div className="p-5 border-b border-slate-200 dark:border-slate-800/90 bg-gradient-to-r from-slate-100 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-600 to-cyan-400 flex items-center justify-center font-bold text-white text-sm shadow-[0_0_10px_rgba(168,85,247,0.4)]">
-                T
+                {currentUser.isLoggedIn ? (currentUser.firstName[0]?.toUpperCase() || 'U') : '👤'}
               </div>
               <div>
-                <p className="text-xs text-slate-400">Bienvenido</p>
-                <h2 className="text-sm sm:text-base font-extrabold text-white tracking-wide">¡Hola, Tomás!</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {currentUser.isLoggedIn ? 'Bienvenido' : 'Modo Visitante'}
+                </p>
+                <h2 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-wide">
+                  {currentUser.isLoggedIn ? `¡Hola, ${currentUser.firstName}!` : 'Invitado'}
+                </h2>
               </div>
             </div>
 
             <button
               onClick={() => setIsSidebarOpen(false)}
-              className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+              className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               aria-label="Cerrar menú"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,8 +335,8 @@ export default function HomePage() {
 
           {/* Cuerpo del menú con acordeón de Géneros y Subcategorías */}
           <div className="p-5 overflow-y-auto flex-1 space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-900">
-              <span className="text-xs uppercase tracking-widest text-slate-400 font-mono">Categorías por Género</span>
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-900">
+              <span className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400 font-mono">Categorías por Género</span>
               <button
                 onClick={() => {
                   setSelectedGender('Todos');
@@ -163,7 +344,7 @@ export default function HomePage() {
                   setExpandedGender(null);
                   setIsSidebarOpen(false);
                 }}
-                className="text-[11px] text-cyan-400 hover:underline font-semibold"
+                className="text-[11px] text-cyan-600 dark:text-cyan-400 hover:underline font-semibold cursor-pointer"
               >
                 Ver todo el catálogo
               </button>
@@ -175,22 +356,22 @@ export default function HomePage() {
                 const isGenderSelected = selectedGender === g;
 
                 return (
-                  <div key={g} className="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden transition-all">
+                  <div key={g} className="rounded-xl border border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-900/40 overflow-hidden transition-all">
                     {/* Botón Principal del Género */}
                     <button
                       onClick={() => setExpandedGender(isExpanded ? null : g)}
-                      className={`w-full text-left px-4 py-3.5 text-sm font-semibold flex items-center justify-between transition-colors ${
+                      className={`w-full text-left px-4 py-3.5 text-sm font-semibold flex items-center justify-between transition-colors cursor-pointer ${
                         isGenderSelected
-                          ? 'bg-purple-950/70 text-purple-200'
-                          : 'text-slate-200 hover:bg-slate-800/80 hover:text-white'
+                          ? 'bg-purple-100 dark:bg-purple-950/70 text-purple-900 dark:text-purple-200'
+                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <span className={`w-2 h-2 rounded-full ${isGenderSelected ? 'bg-purple-400 shadow-[0_0_6px_rgba(192,38,211,1)]' : 'bg-slate-600'}`}></span>
+                        <span className={`w-2 h-2 rounded-full ${isGenderSelected ? 'bg-purple-500 dark:bg-purple-400 shadow-[0_0_6px_rgba(192,38,211,1)]' : 'bg-slate-400 dark:bg-slate-600'}`}></span>
                         <span>{g}</span>
                       </div>
                       <svg
-                        className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-cyan-400' : ''}`}
+                        className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-cyan-600 dark:text-cyan-400' : ''}`}
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -199,21 +380,9 @@ export default function HomePage() {
                       </svg>
                     </button>
 
-                    {/* Subcategorías desplegables */}
+                    {/* Subcategorías desplegables en acordeón */}
                     {isExpanded && (
-                      <div className="bg-slate-950/80 border-t border-slate-800/60 p-2 space-y-1">
-                        <button
-                          onClick={() => {
-                            setSelectedGender(g);
-                            setSelectedCategory('Todas');
-                            setIsSidebarOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-bold text-cyan-400 hover:bg-cyan-950/40 border border-cyan-900/40 flex items-center justify-between transition-colors"
-                        >
-                          <span>Ver todo en {g}</span>
-                          <span className="text-cyan-400">→</span>
-                        </button>
-
+                      <div className="bg-slate-100/80 dark:bg-slate-950/80 border-t border-slate-200 dark:border-slate-800/60 p-2 grid grid-cols-2 gap-1.5 animate-fadeIn">
                         {categories.map((cat) => {
                           const isCatSelected = selectedGender === g && selectedCategory === cat;
                           return (
@@ -224,14 +393,13 @@ export default function HomePage() {
                                 setSelectedCategory(cat);
                                 setIsSidebarOpen(false);
                               }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors flex items-center justify-between ${
+                              className={`text-left px-3 py-2 rounded-lg text-xs transition-colors cursor-pointer ${
                                 isCatSelected
-                                  ? 'bg-gradient-to-r from-purple-900/60 to-cyan-950 text-white font-bold border border-purple-500/40'
-                                  : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+                                  ? 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/40'
+                                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100'
                               }`}
                             >
-                              <span>{cat}</span>
-                              {isCatSelected && <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>}
+                              {cat}
                             </button>
                           );
                         })}
@@ -241,67 +409,86 @@ export default function HomePage() {
                 );
               })}
             </div>
-          </div>
 
-          {/* Footer del Drawer */}
-          <div className="p-4 border-t border-slate-900 bg-slate-950 space-y-2 flex-shrink-0">
-            <button
-              onClick={() => {
-                setSelectedGender('Todos');
-                setSelectedCategory('Todas');
-                setSearchQuery('');
-                setExpandedGender(null);
-                setIsSidebarOpen(false);
-              }}
-              className="w-full py-2.5 px-4 text-xs font-semibold text-slate-400 hover:text-slate-200 bg-slate-900 hover:bg-slate-800 rounded-lg border border-slate-800 transition-colors"
-            >
-              Limpiar todos los filtros
-            </button>
-            <Link
-              href="/admin"
-              onClick={() => setIsSidebarOpen(false)}
-              className="w-full py-2 px-4 text-xs text-center font-medium text-slate-500 hover:text-cyan-400 flex items-center justify-center gap-1.5 transition-colors"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span>Acceso Administrador</span>
-            </Link>
+            {/* Accesos Rápidos en Sidebar */}
+            <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2 font-mono text-xs">
+              <Link
+                href="/?ofertas=true"
+                onClick={() => setIsSidebarOpen(false)}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-white border border-rose-200 dark:border-rose-800/60 transition"
+              >
+                <span>🔥 Ver Remates y Ofertas</span>
+                <span className="text-rose-500 dark:text-rose-400">→</span>
+              </Link>
+
+              <Link
+                href="/cuenta"
+                onClick={() => setIsSidebarOpen(false)}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-900/60 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 transition"
+              >
+                <span>📦 Mi Bóveda / Pedidos</span>
+                <span className="text-cyan-600 dark:text-cyan-400">→</span>
+              </Link>
+
+              {currentUser.isAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-fuchsia-50 dark:bg-fuchsia-950/60 hover:bg-fuchsia-100 dark:hover:bg-fuchsia-900/70 text-fuchsia-700 dark:text-fuchsia-300 hover:text-fuchsia-900 dark:hover:text-white border border-fuchsia-200 dark:border-fuchsia-800/60 transition"
+                >
+                  <span>👑 Panel de Control Admin</span>
+                  <span className="text-fuchsia-500 dark:text-fuchsia-400">→</span>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </aside>
 
-      {/* Header / Navegación Superior */}
-      <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-slate-950/90 border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          {/* Izquierda: Logo interactivo + Botón Hamburguesa "Menú" */}
-          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+      {/* Banner de Notificación RBAC si intentó acceder al Admin sin permisos */}
+      {accessDeniedMessage && (
+        <div className="bg-rose-950/90 border-b border-rose-500/50 text-rose-200 px-4 py-3 text-xs sm:text-sm font-mono flex items-center justify-between gap-4 z-40 backdrop-blur-md shadow-lg">
+          <div className="flex items-center gap-2 max-w-5xl mx-auto">
+            <span className="text-rose-400 text-base font-bold">🚫</span>
+            <span>{accessDeniedMessage}</span>
+          </div>
+          <button
+            onClick={() => setAccessDeniedMessage(null)}
+            className="text-rose-400 hover:text-white text-base font-bold p-1 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* NAVBAR SUPERIOR ESTILO CYBER-Y2K */}
+      <header className="sticky top-0 z-30 w-full bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 shadow-sm transition-colors duration-200">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          {/* Izquierda: Logotipo Y2K y Botón Categorías */}
+          <div className="flex items-center gap-3 sm:gap-6 flex-shrink-0">
             <button
               onClick={() => {
-                setSelectedGender('Todos');
                 setSelectedCategory('Todas');
+                setSelectedGender('Todos');
                 setSearchQuery('');
-                setIsSidebarOpen(false);
               }}
-              className="flex items-center gap-2 group cursor-pointer text-left focus:outline-none select-none"
-              aria-label="Volver al inicio y restablecer tienda"
+              className="flex items-center gap-2 group cursor-pointer text-left"
             >
               <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] animate-pulse"></span>
-              <span className="text-xl sm:text-2xl font-black tracking-widest text-white group-hover:text-cyan-400 transition-colors">
+              <span className="text-xl sm:text-2xl font-black tracking-widest text-slate-900 dark:text-white group-hover:text-cyan-500 dark:group-hover:text-cyan-400 transition-colors">
                 Y2K <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500">STORE</span>
               </span>
             </button>
 
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 text-xs sm:text-sm font-semibold transition-all hover:border-cyan-500/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs sm:text-sm font-semibold transition-all hover:border-cyan-500/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer"
               aria-label="Abrir menú de categorías"
             >
-              <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-cyan-500 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-              <span>Menú</span>
+              <span>Categorías</span>
             </button>
           </div>
 
@@ -312,8 +499,8 @@ export default function HomePage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar en Y2K Store..."
-                className="w-full bg-slate-900 border border-slate-700 rounded-full py-2.5 pl-11 pr-10 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all shadow-inner"
+                placeholder="Buscar en Y2K Store por nombre, color, marca..."
+                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-full py-2.5 pl-11 pr-10 text-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all shadow-inner"
               />
               <svg
                 className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"
@@ -331,7 +518,7 @@ export default function HomePage() {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs bg-slate-800 rounded-full w-5 h-5 flex items-center justify-center"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs bg-slate-200 dark:bg-slate-800 rounded-full w-5 h-5 flex items-center justify-center cursor-pointer"
                 >
                   ×
                 </button>
@@ -339,33 +526,54 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Derecha: Saludo, Mi Cuenta y Botón del Carrito con Insignia */}
-          <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-            {/* Saludo Tomás */}
+          {/* Derecha: Saludo Dinámico, ThemeToggle, Mi Cuenta, Panel Admin y Carrito */}
+          <div className="flex items-center gap-2.5 sm:gap-3.5 flex-shrink-0">
+            {/* Saludo Dinámico */}
             <div className="hidden lg:flex flex-col text-right">
-              <span className="text-xs text-slate-400 font-medium">Bienvenido</span>
-              <span className="text-xs sm:text-sm font-bold text-white tracking-wide">¡Hola, Tomás!</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                {currentUser.isLoggedIn ? 'Bienvenido' : 'Modo'}
+              </span>
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-wide">
+                {currentUser.isLoggedIn ? `¡Hola, ${currentUser.firstName}!` : 'Invitado'}
+              </span>
             </div>
 
-            {/* Botón Mi Cuenta */}
+            {/* Theme Toggle Button */}
+            <ThemeToggle />
+
+            {/* Botón Mi Cuenta / Iniciar Sesión */}
             <Link
-              href="/admin"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold transition-all"
+              href="/cuenta"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900/80 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-800 text-xs font-semibold transition-all hover:border-cyan-500/40 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
             >
-              <svg className="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-cyan-500 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
               </svg>
-              <span className="hidden md:inline">Mi Cuenta</span>
+              <span className="hidden md:inline">
+                {currentUser.isLoggedIn ? 'Mi Cuenta' : 'Iniciar Sesión'}
+              </span>
             </Link>
+
+            {/* Botón Admin Panel (Solo visible si el usuario pertenece a Super_Admin o Admin_Tienda) */}
+            {currentUser.isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fuchsia-100 dark:bg-fuchsia-950/80 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 hover:text-fuchsia-900 dark:hover:text-white border border-fuchsia-300 dark:border-fuchsia-700/60 text-xs font-semibold transition-all shadow-sm dark:shadow-[0_0_10px_rgba(217,70,239,0.2)]"
+                title="Centro de Control de Administración"
+              >
+                <span>👑</span>
+                <span className="hidden xl:inline">Admin</span>
+              </Link>
+            )}
 
             {/* Botón del Carrito con badge dinámico */}
             <button
               type="button"
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2.5 rounded-lg bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all group hover:border-cyan-500/50 hover:shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+              className="relative p-2.5 rounded-lg bg-slate-100 dark:bg-slate-900/80 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 transition-all group hover:border-cyan-500/50 hover:shadow-[0_0_12px_rgba(6,182,212,0.25)] cursor-pointer"
               aria-label="Abrir carrito de compras"
             >
-              <svg className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-cyan-500 dark:text-cyan-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
               {cart.length > 0 ? (
@@ -373,7 +581,7 @@ export default function HomePage() {
                   {cart.length}
                 </span>
               ) : (
-                <span className="absolute -top-1.5 -right-1.5 bg-slate-800 text-slate-400 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-700">
+                <span className="absolute -top-1.5 -right-1.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-slate-300 dark:border-slate-700">
                   0
                 </span>
               )}
@@ -382,14 +590,14 @@ export default function HomePage() {
         </div>
 
         {/* Barra de búsqueda móvil */}
-        <div className="px-4 pb-3 sm:hidden">
+        <div className="px-4 pb-3 sm:hidden pt-2">
           <div className="relative">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Buscar en Y2K Store..."
-              className="w-full bg-slate-900 border border-slate-700 rounded-full py-2 pl-10 pr-9 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400"
+              className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-full py-2 pl-10 pr-9 text-xs text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500"
             />
             <svg
               className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"
@@ -399,230 +607,337 @@ export default function HomePage() {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
-              >
-                ×
-              </button>
-            )}
           </div>
         </div>
       </header>
 
-      {/* Hero Banner */}
-      <section className="relative overflow-hidden py-10 px-4 sm:px-6 lg:px-8 border-b border-slate-900 bg-gradient-to-b from-slate-900/40 to-transparent">
-        <div className="max-w-7xl mx-auto text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-1">
-            ✨ Catálogo Exclusivo 2000s
+      {/* CARRUSEL DE MARKETING DINÁMICO (HERO SLIDER) */}
+      <section className="relative overflow-hidden border-b border-cyan-500/20 bg-slate-950 min-h-[360px] sm:min-h-[440px] flex flex-col justify-between">
+        {/* Fondo con Imagen o Patrón Cyber */}
+        {banners.length > 0 && banners[currentSlide]?.imageUrl ? (
+          <div className="absolute inset-0 z-0">
+            <StorageImage
+              path={banners[currentSlide].imageUrl!}
+              alt={banners[currentSlide].title || 'Hero Banner'}
+              className="w-full h-full object-cover object-center animate-fadeIn"
+            />
+            {/* Overlay Oscuro Cyber */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/75 to-slate-950/90 backdrop-blur-[2px]" />
           </div>
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white">
-            VINTAGE & STREETWEAR VAULT
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-400 max-w-2xl mx-auto">
-            Explora las prendas, accesorios, calzado y fragancias seleccionadas de nuestra tienda Y2K.
-          </p>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/80 to-slate-950 z-0">
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293715_1px,transparent_1px),linear-gradient(to_bottom,#1f293715_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+          </div>
+        )}
 
-          {/* Indicadores de Filtros Activos */}
-          {(selectedCategory !== 'Todas' || selectedGender !== 'Todos' || searchQuery.trim() !== '') && (
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-3 text-xs text-slate-400">
-              <span className="font-mono">Filtros:</span>
-              {selectedGender !== 'Todos' && (
-                <span className="bg-purple-950 text-purple-300 border border-purple-800/60 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
-                  Género: {selectedGender}
-                  <button onClick={() => setSelectedGender('Todos')} className="hover:text-white font-bold">×</button>
+        {/* Contenido Principal del Slide */}
+        <div className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-10 sm:py-14 text-center space-y-4 relative z-10 flex-1 flex flex-col justify-center items-center">
+          {banners.length > 0 ? (
+            <Link
+              href={banners[currentSlide]?.actionUrl || '#'}
+              key={banners[currentSlide]?.id || currentSlide}
+              className={`space-y-4 animate-fadeIn max-w-3xl block transition-all duration-300 ${
+                banners[currentSlide]?.actionUrl ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'
+              }`}
+            >
+              {/* Badge Dinámico */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-950/70 text-fuchsia-300 text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_rgba(217,70,239,0.35)]">
+                <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-ping" />
+                <span>{banners[currentSlide]?.badgeText || 'DESTACADO'}</span>
+              </div>
+
+              {/* Título */}
+              <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white uppercase leading-tight drop-shadow group-hover:text-cyan-300 transition-colors">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-400">
+                  {banners[currentSlide]?.title || 'Y2K DROP COLLECTION'}
                 </span>
+              </h2>
+
+              {/* Subtítulo */}
+              {banners[currentSlide]?.subtitle && (
+                <p className="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-sm">
+                  {banners[currentSlide]?.subtitle}
+                </p>
               )}
-              {selectedCategory !== 'Todas' && (
-                <span className="bg-cyan-950 text-cyan-300 border border-cyan-800/60 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
-                  Categoría: {selectedCategory}
-                  <button onClick={() => setSelectedCategory('Todas')} className="hover:text-white font-bold">×</button>
+
+              {banners[currentSlide]?.actionUrl && (
+                <div className="pt-1">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-400 bg-cyan-950/80 px-3 py-1 rounded-full border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+                    <span>Ver Promoción</span>
+                    <span>→</span>
+                  </span>
+                </div>
+              )}
+            </Link>
+          ) : (
+            /* Fallback por Defecto */
+            <div className="space-y-4 max-w-3xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/40 text-cyan-400 text-xs font-mono tracking-widest uppercase">
+                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                <span>DROP COLLECTION // 2000s AESTHETICS</span>
+              </div>
+
+              <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white uppercase leading-tight">
+                FUTURE NOSTALGIA <br className="hidden sm:inline" />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-500">
+                  Y2K STREETWEAR
                 </span>
-              )}
-              {searchQuery.trim() !== '' && (
-                <span className="bg-slate-800 text-slate-200 border border-slate-700 px-2.5 py-0.5 rounded-md flex items-center gap-1.5">
-                  Búsqueda: &ldquo;{searchQuery}&rdquo;
-                  <button onClick={() => setSearchQuery('')} className="hover:text-white font-bold">×</button>
-                </span>
-              )}
-              <button
-                onClick={() => {
-                  setSelectedGender('Todos');
-                  setSelectedCategory('Todas');
-                  setSearchQuery('');
-                }}
-                className="text-xs text-cyan-400 hover:underline font-semibold ml-2"
-              >
-                Restablecer todo
-              </button>
+              </h2>
+
+              <p className="text-xs sm:text-base text-slate-400 max-w-2xl mx-auto font-light leading-relaxed">
+                Prendas únicas, zapatillas icónicas y accesorios retro-futuristas curados para la era digital. Despachos rápidos y retiros en tienda.
+              </p>
             </div>
           )}
-        </div>
-      </section>
 
-      {/* Grid de Productos */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10">
-        <div className="flex items-center justify-between mb-6 pb-2 border-b border-slate-900">
-          <span className="text-xs font-mono uppercase tracking-wider text-slate-400">
-            Mostrando {filteredProducts.length} {filteredProducts.length === 1 ? 'producto' : 'productos'}
-          </span>
-          {cart.length > 0 && (
+          {/* Quick Filters de Categorías */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-3">
             <button
-              onClick={() => setIsCartOpen(true)}
-              className="text-xs text-cyan-400 hover:underline font-semibold flex items-center gap-1.5"
+              onClick={() => { setSelectedCategory('Todas'); setSelectedGender('Todos'); }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all duration-300 cursor-pointer ${
+                selectedCategory === 'Todas' && selectedGender === 'Todos'
+                  ? 'bg-cyan-500 text-black font-bold shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                  : 'bg-white dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
+              }`}
             >
-              <span>Ver Carrito ({cart.length})</span>
-              <span>→</span>
+              Todos ({products.length})
             </button>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="bg-slate-900/60 rounded-xl p-4 border border-slate-800/80 animate-pulse space-y-3">
-                <div className="aspect-square bg-slate-800 rounded-lg"></div>
-                <div className="h-4 bg-slate-800 rounded w-3/4"></div>
-                <div className="h-3 bg-slate-800 rounded w-1/2"></div>
-                <div className="h-8 bg-slate-800 rounded mt-4"></div>
-              </div>
+            {categories.slice(0, 5).map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all duration-300 cursor-pointer ${
+                  selectedCategory === cat
+                    ? 'bg-cyan-500 text-black font-bold shadow-[0_0_15px_rgba(6,182,212,0.5)]'
+                    : 'bg-white dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
+                }`}
+              >
+                {cat}
+              </button>
             ))}
           </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-20 bg-slate-900/30 rounded-2xl border border-slate-800/50">
-            <svg className="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-            </svg>
-            <h3 className="text-lg font-semibold text-white">No se encontraron productos</h3>
-            <p className="text-sm text-slate-400 mt-1 max-w-md mx-auto">
-              No hay coincidencias para los filtros aplicados. Intenta buscar con otros términos o limpiar los filtros.
-            </p>
+        </div>
+
+        {/* Controles de Navegación del Carrusel (Flechas y Dots) */}
+        {banners.length > 1 && (
+          <div className="relative z-20 pb-4 max-w-6xl mx-auto w-full px-4 flex items-center justify-between">
+            {/* Flecha Izquierda */}
             <button
-              onClick={() => {
-                setSelectedCategory('Todas');
-                setSelectedGender('Todos');
-                setSearchQuery('');
-              }}
-              className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-cyan-400 rounded-lg transition border border-slate-700"
+              type="button"
+              onClick={() => setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length)}
+              className="p-2 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              aria-label="Slide anterior"
             >
-              Ver Todo el Catálogo
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
+              </svg>
             </button>
+
+            {/* Dots Indicadores */}
+            <div className="flex items-center gap-2">
+              {banners.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => setCurrentSlide(idx)}
+                  className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                    currentSlide === idx
+                      ? 'w-6 bg-gradient-to-r from-cyan-400 to-fuchsia-500 shadow-[0_0_10px_rgba(34,211,238,0.8)]'
+                      : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-500'
+                  }`}
+                  aria-label={`Ir al slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            {/* Flecha Derecha */}
+            <button
+              type="button"
+              onClick={() => setCurrentSlide((prev) => (prev + 1) % banners.length)}
+              className="p-2 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              aria-label="Slide siguiente"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* CATÁLOGO DE PRODUCTOS (GRID) */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-8 py-10 space-y-6">
+        {/* Barra informativa de resultados */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200 dark:border-slate-800/80 font-mono text-xs">
+          <div className="text-slate-600 dark:text-slate-400 flex items-center gap-2 flex-wrap">
+            <span>Mostrando:</span>
+            {isSaleFilter ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-rose-600 dark:text-rose-400 font-bold font-mono flex items-center gap-1.5 bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-600/50 px-2.5 py-1 rounded shadow-sm dark:shadow-[0_0_10px_rgba(244,63,94,0.3)]">
+                  <span>🔥</span>
+                  <span>PRODUCTOS EN REMATE / OFERTAS</span>
+                </span>
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 hover:border-cyan-500/50 text-[11px] font-mono transition shadow-sm cursor-pointer"
+                  title="Eliminar filtro de ofertas y volver al catálogo completo"
+                >
+                  <span className="text-rose-500 font-bold">✕</span>
+                  <span>Quitar Filtro</span>
+                </Link>
+              </div>
+            ) : (
+              <span className="text-cyan-600 dark:text-cyan-400 font-bold">
+                {selectedGender !== 'Todos' ? `${selectedGender} • ` : ''}
+                {selectedCategory !== 'Todas' ? selectedCategory : 'Todos los productos'}
+              </span>
+            )}
+            {isSaleFilter && selectedCategory !== 'Todas' && (
+              <span className="text-cyan-600 dark:text-cyan-400 font-bold">
+                • {selectedCategory}
+              </span>
+            )}
+            {searchQuery && (
+              <span className="text-slate-500 italic">
+                (Filtro: &quot;{searchQuery}&quot;)
+              </span>
+            )}
+          </div>
+          <span className="text-slate-500">
+            {filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}
+          </span>
+        </div>
+
+        {/* Listado / Grid */}
+        {loading ? (
+          <div className="py-24 text-center space-y-4">
+            <div className="w-10 h-10 mx-auto rounded-full border-2 border-cyan-500 dark:border-cyan-400 border-t-transparent animate-spin" />
+            <p className="text-xs font-mono text-cyan-600 dark:text-cyan-400 tracking-wider animate-pulse">
+              CONECTANDO AL CATÁLOGO DE PRODUCTOS...
+            </p>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-20 bg-white dark:bg-slate-900/40 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 space-y-3 shadow-sm">
+            <div className="text-4xl">🛸</div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">No se encontraron productos</h3>
+            <p className="text-xs font-mono text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              No hay coincidencias para los filtros seleccionados. Prueba limpiando la búsqueda o seleccionando otra categoría.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => {
+                  setSelectedCategory('Todas');
+                  setSelectedGender('Todos');
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-mono font-bold transition cursor-pointer shadow-sm"
+              >
+                Restablecer Filtros
+              </button>
+              {isSaleFilter && (
+                <Link
+                  href="/"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-mono font-bold transition border border-slate-300 dark:border-slate-700 cursor-pointer"
+                >
+                  Volver a Todos los Productos
+                </Link>
+              )}
+            </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredProducts.map((p, index) => {
-              const formattedPrice = Number(p?.price ?? 0).toLocaleString('es-CL');
-              const isVolumenCategory = p?.category === 'Colonias' || p?.category === 'Cosmética';
-              const isAdded = addedProductId === p?.id;
-              const shortId = (p?.id || '').slice(0, 8).toUpperCase();
-              const availableUnits = p?.stock ?? 1;
+            {filteredProducts.map((product) => {
+              const displayImage =
+                product.imageUrl ||
+                (product.imageUrls && product.imageUrls.length > 0 ? product.imageUrls[0] : null);
+
+              const isJustAdded = addedProductId === product.id;
 
               return (
                 <div
-                  key={p?.id || index}
-                  className="bg-slate-900/90 rounded-2xl border border-cyan-500/30 hover:border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.12),inset_0_0_15px_rgba(6,182,212,0.02)] hover:shadow-[0_0_25px_rgba(6,182,212,0.3),0_0_15px_rgba(168,85,247,0.2)] transition-all duration-300 group flex flex-col justify-between overflow-hidden relative"
+                  key={product.id}
+                  className="group rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/60 dark:hover:border-cyan-400/60 transition-all duration-300 ease-in-out flex flex-col justify-between overflow-hidden shadow-sm dark:shadow-none hover:shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:-translate-y-1"
                 >
-                  {/* Encabezado de Terminal Cyber-Y2K: Código Serial / ID del Producto */}
-                  <div className="flex items-center justify-between px-3.5 py-1.5 bg-slate-950/95 border-b border-cyan-500/20 text-[11px] font-mono tracking-wider">
-                    <div className="flex items-center gap-1.5 text-slate-400 group-hover:text-cyan-300 transition-colors">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.9)] animate-pulse" />
-                      <span className="font-mono font-bold">SYS://REF-{shortId}</span>
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-500 group-hover:text-slate-400">
-                      STK:{availableUnits}U
-                    </span>
-                  </div>
+                  <Link href={`/producto/${product.id}`} className="block relative">
+                    <PublicProductImage imagePath={displayImage} alt={product.name} />
 
-                  <div>
-                    {/* Contenedor de Imagen con Marco Sólido Técnico */}
-                    <Link href={`/producto/${p?.id}`} className="block overflow-hidden cursor-pointer">
-                      <PublicProductImage imagePath={p?.imageUrls?.[0] || p?.imageUrl} alt={p?.name || 'Producto'} />
-                    </Link>
-
-                    {/* Contenido Técnico */}
-                    <div className="p-4 space-y-2.5">
-                      {/* Badges de Categoría y Género Estilo Chip Neón */}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-cyan-950/90 text-cyan-300 border border-cyan-700/50 shadow-[0_0_8px_rgba(6,182,212,0.15)]">
-                          {p?.category || 'General'}
+                    {/* Badges de Oferta / Talla / Stock */}
+                    <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1 pointer-events-none">
+                      {product.isOnSale && (
+                        <span className="px-2 py-0.5 rounded bg-rose-600/90 dark:bg-rose-950/95 backdrop-blur-md text-[10px] font-mono font-black text-white dark:text-rose-300 border border-rose-400 dark:border-rose-600/70 shadow-sm dark:shadow-[0_0_10px_rgba(244,63,94,0.5)] animate-pulse">
+                          🔥 OFERTA
                         </span>
-                        {p?.gender && (
-                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-purple-950/90 text-purple-300 border border-purple-700/50 shadow-[0_0_8px_rgba(168,85,247,0.15)]">
-                            {p.gender}
-                          </span>
-                        )}
-                        {p?.brand && (
-                          <span className="text-[10px] font-mono font-bold tracking-wider uppercase px-2 py-0.5 rounded bg-slate-800/80 text-amber-300/90 border border-amber-800/40">
-                            {p.brand}
-                          </span>
-                        )}
+                      )}
+                      {product.size && (
+                        <span className="px-2 py-0.5 rounded bg-white/90 dark:bg-slate-950/80 backdrop-blur-md text-[10px] font-mono font-bold text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 shadow-sm">
+                          TALLA: {product.size}
+                        </span>
+                      )}
+                      {product.stock <= 2 && product.stock > 0 && (
+                        <span className="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950/90 text-[9px] font-mono font-bold text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-600/50 animate-pulse">
+                          ¡ÚLTIMAS {product.stock}!
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+
+                  {/* Cuerpo de la tarjeta */}
+                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 mb-1">
+                        <span>{product.gender || 'Unisex'}</span>
+                        <span>{product.category}</span>
                       </div>
 
-                      {/* Nombre con enlace a la vista de detalles */}
-                      <Link href={`/producto/${p?.id}`} className="block cursor-pointer">
-                        <h2 className="font-bold text-base text-white group-hover:text-cyan-300 transition-colors line-clamp-1 tracking-tight">
-                          {p?.name || 'Producto sin nombre'}
-                        </h2>
+                      <Link href={`/producto/${product.id}`} className="block group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
+                        <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">
+                          {product.name}
+                        </h3>
                       </Link>
 
-                      {/* Detalles Técnicos: Talla/Volumen & Color */}
-                      {(p?.size || p?.color) && (
-                        <div className="flex items-center gap-1.5 text-xs text-slate-400 font-mono">
-                          <span className="text-slate-500">SPEC:</span>
-                          {p?.size && (
-                            <span className="text-slate-300 font-semibold">
-                              {isVolumenCategory ? 'VOL' : 'SZ'}: {p.size}
-                            </span>
-                          )}
-                          {p?.size && p?.color && <span className="text-slate-600">/</span>}
-                          {p?.color && (
-                            <span className="text-slate-300">
-                              {p.color}
-                            </span>
-                          )}
-                        </div>
+                      {product.brand && (
+                        <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">{product.brand}</p>
                       )}
                     </div>
-                  </div>
 
-                  {/* Footer de la Card: Precio y Botón Agregar al Carrito */}
-                  <div className="p-4 pt-0 mt-auto space-y-3">
-                    <div className="flex items-baseline justify-between pt-2.5 border-t border-slate-800/80">
-                      <span className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">PRECIO</span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 drop-shadow-[0_0_10px_rgba(6,182,212,0.3)]">
-                          ${formattedPrice}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-500">CLP</span>
-                      </div>
+                    {/* Botón de Ancho Completo Agregar al Carrito */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                      <button
+                        type="button"
+                        onClick={() => handleAddToCart(product)}
+                        disabled={product.stock <= 0}
+                        className={`w-full mt-2 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-mono font-bold uppercase tracking-wider transition-all duration-300 ${
+                          isJustAdded
+                            ? 'bg-emerald-500 text-black scale-[1.02] shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                            : product.stock <= 0
+                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700 opacity-60'
+                            : 'bg-gradient-to-r from-cyan-500 via-sky-500 to-fuchsia-600 hover:from-cyan-400 hover:to-fuchsia-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
+                        }`}
+                      >
+                        {isJustAdded ? (
+                          <>
+                            <span className="font-black text-sm">✓</span>
+                            <span>¡AGREGADO AL CARRITO!</span>
+                          </>
+                        ) : product.stock <= 0 ? (
+                          <span>AGOTADO</span>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                              />
+                            </svg>
+                            <span className="truncate">
+                              AGREGAR AL CARRITO • ${Number(product.price).toLocaleString('es-CL')}
+                            </span>
+                          </>
+                        )}
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleAddToCart(p)}
-                      className={`w-full py-2.5 px-4 rounded-xl text-white text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                        isAdded
-                          ? 'bg-emerald-600 shadow-[0_0_15px_rgba(16,185,129,0.6)] scale-[1.02]'
-                          : 'bg-gradient-to-r from-cyan-600 via-purple-600 to-fuchsia-600 hover:from-cyan-500 hover:via-purple-500 hover:to-fuchsia-500 shadow-[0_0_12px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(217,70,239,0.5)] active:scale-[0.98]'
-                      }`}
-                    >
-                      {isAdded ? (
-                        <>
-                          <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                          </svg>
-                          <span>¡Agregado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 fill-none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                          </svg>
-                          <span>Agregar al carrito</span>
-                        </>
-                      )}
-                    </button>
                   </div>
                 </div>
               );
@@ -631,12 +946,33 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="w-full border-t border-slate-900 bg-slate-950/90 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4">
-          <p>© {new Date().getFullYear()} Y2K Store. Todos los derechos reservados.</p>
+      {/* FOOTER CYBER-Y2K */}
+      <footer className="w-full bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800/80 py-8 px-4 sm:px-8 mt-12 transition-colors duration-200">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 font-mono text-xs text-slate-500">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
+            <span>Y2K CLOTHING SYSTEM // VALPARAÍSO, CHILE</span>
+          </div>
+          <div>
+            <span>TODOS LOS DERECHOS RESERVADOS • 2026</span>
+          </div>
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4">
+          <div className="w-10 h-10 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin" />
+          <p className="text-xs font-mono text-cyan-400 tracking-widest animate-pulse">CARGANDO Y2K STORE...</p>
+        </div>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }

@@ -19,22 +19,45 @@ const schema = a.schema({
 
     // --- ESTADO ---
     isAvailable: a.boolean().default(true),
+    isOnSale: a.boolean().default(false), // Producto en oferta / remate
   }).authorization(allow => [
-    allow.authenticated(), // Administrador autenticado tiene acceso completo
-    allow.guest().to(['read', 'update']), // Clientes no autenticados pueden ver y actualizar stock al pagar
+    allow.guest().to(['read']),
+    allow.authenticated().to(['read']),
+    allow.groups(['Super_Admin', 'Admin_Tienda']).to(['create', 'update', 'delete', 'read']),
   ]),
 
   Order: a.model({
-    customerName: a.string().required(),
-    customerEmail: a.string().required(),
-    customerPhone: a.string().required(),
-    shippingAddress: a.string().required(),
-    totalAmount: a.float().required(),
-    status: a.string().required(), // 'PENDIENTE', 'PAGADO', 'CANCELADO'
-    cartItems: a.json().required(), // Resumen de los productos comprados
+    shortId: a.string(), // Código amigable (ej. Y2K-A83B)
+    customerName: a.string(),
+    customerEmail: a.string(),
+    customerPhone: a.string(),
+    shippingAddress: a.string(),
+    totalAmount: a.float(),
+    status: a.string(), // 'PENDIENTE', 'PAGADO', 'CANCELADO'
+    cartItems: a.json(), // Resumen de los productos comprados
+
+    // --- LOGÍSTICA HÍBRIDA ---
+    deliveryMethod: a.string(), // 'RETIRO_PRESENCIAL', 'ENVIO_LOCAL', 'ENVIO_REGION'
+    pickupCode: a.string(),     // Código alfanumérico único para retiro / escáner
+    trackingNumber: a.string(), // Número de seguimiento de courier para envíos a región
+    logisticsStatus: a.string(), // 'PREPARANDO', 'LISTO_PARA_RETIRO', 'EN_TRANSITO', 'ENTREGADO'
   }).authorization(allow => [
-    allow.authenticated(), // Administrador puede gestionar pedidos
-    allow.guest().to(['create', 'read']), // Clientes pueden crear pedidos y consultar su estado
+    allow.guest().to(['create']), // Si permites compras sin registro
+    allow.authenticated().to(['create', 'read']), // CRÍTICO: Permite a los clientes ver sus pedidos
+    allow.groups(['Super_Admin', 'Admin_Tienda', 'Logistica_Operadores']).to(['create', 'update', 'delete', 'read']),
+  ]),
+
+  MarketingBanner: a.model({
+    title: a.string(),
+    subtitle: a.string(),
+    imageUrl: a.string(),
+    badgeText: a.string(), // ej. 'REMATE', 'NUEVO DROP'
+    actionUrl: a.string(), // Ruta de redirección al hacer clic en el banner
+    isActive: a.boolean().default(true),
+  }).authorization(allow => [
+    allow.guest().to(['read']),
+    allow.authenticated().to(['read']),
+    allow.groups(['Super_Admin', 'Admin_Tienda']).to(['create', 'update', 'delete', 'read']),
   ]),
 });
 
@@ -43,6 +66,6 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: 'userPool',
+    defaultAuthorizationMode: 'identityPool',
   },
 });

@@ -6,6 +6,7 @@ import outputs from '@/amplify_outputs.json';
 import ConfigureAmplifyClientSide from '@/app/ConfigureAmplify';
 import { CartProvider } from '@/context/CartContext';
 import CartDrawer from '@/components/CartDrawer';
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 Amplify.configure(outputs, { ssr: true });
 
@@ -32,14 +33,17 @@ export default function RootLayout({
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <ConfigureAmplifyClientSide />
-        <CartProvider>
-          <CartDrawer />
-          {children}
-        </CartProvider>
+      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-200">
+        <ThemeProvider attribute="class" defaultTheme="dark">
+          <ConfigureAmplifyClientSide />
+          <CartProvider>
+            <CartDrawer />
+            {children}
+          </CartProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

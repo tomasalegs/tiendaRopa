@@ -7,13 +7,34 @@ import { defineStorage } from '@aws-amplify/backend';
 export const storage = defineStorage({
   name: 'productImages',
   access: (allow) => ({
-    'product-images/*': [
-      allow.authenticated.to(['read', 'write', 'delete']),
+    'public/*': [
       allow.guest.to(['read']),
+      allow.authenticated.to(['read', 'write']),
+      allow.groups(['Super_Admin', 'Admin_Tienda']).to(['read', 'write', 'delete']),
+      allow.groups(['Logistica_Operadores']).to(['read']),
+    ],
+    'marketing/*': [
+      allow.guest.to(['read']),
+      allow.authenticated.to(['read', 'write']),
+      allow.groups(['Super_Admin', 'Admin_Tienda']).to(['read', 'write', 'delete']),
+    ],
+    'products/*': [
+      allow.guest.to(['read']),
+      allow.authenticated.to(['read', 'write']),
+      allow.groups(['Super_Admin', 'Admin_Tienda']).to(['read', 'write', 'delete']),
+      allow.groups(['Logistica_Operadores']).to(['read']),
+    ],
+    'product-images/*': [
+      allow.guest.to(['read']),
+      allow.authenticated.to(['read']),
+      allow.groups(['Super_Admin', 'Admin_Tienda']).to(['read', 'write', 'delete']),
+      allow.groups(['Logistica_Operadores']).to(['read']),
     ],
     'productos/*': [
-      allow.authenticated.to(['read', 'write', 'delete']),
       allow.guest.to(['read']),
+      allow.authenticated.to(['read']),
+      allow.groups(['Super_Admin', 'Admin_Tienda']).to(['read', 'write', 'delete']),
+      allow.groups(['Logistica_Operadores']).to(['read']),
     ],
   }),
 });

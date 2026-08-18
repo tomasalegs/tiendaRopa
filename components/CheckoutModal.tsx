@@ -1,10 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { Amplify } from 'aws-amplify';
+import outputs from '@/amplify_outputs.json';
 import { generateClient } from 'aws-amplify/data';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import type { Schema } from '@/amplify/data/resource';
 import { useCart } from '@/context/CartContext';
 
+Amplify.configure(outputs, { ssr: true });
 const client = generateClient<Schema>();
 
 interface CheckoutModalProps {
@@ -98,6 +102,10 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     setIsSubmitting(true);
 
     try {
+      const session = await fetchAuthSession();
+      const isAuth = session.tokens !== undefined;
+      const authMode = isAuth ? 'userPool' : 'identityPool';
+
       // 2. a) Verificar que haya stock disponible en tiempo real
       const requestedMap: Record<string, { qty: number; sampleItem: Schema['Product']['type'] }> = {};
       for (const item of cart) {
@@ -113,7 +121,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
       const productChecks = await Promise.all(
         uniqueIds.map((id) =>
-          client.models.Product.get({ id })
+          client.models.Product.get({ id }, { authMode })
             .then((res) => ({ id, data: res.data, error: null }))
             .catch((err) => ({ id, data: null, error: err }))
         )
@@ -164,7 +172,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         price: p.price,
         size: p.size,
         category: p.category,
-        imageUrl: p.imageUrl,
+        imageUrl: p.imageUrls?.[0] || p.imageUrl,
+        imageUrls: p.imageUrls,
       }));
 
       const orderResult = await client.models.Order.create({
@@ -222,21 +231,21 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
       {/* Backdrop oscuro */}
       <div
-        className="fixed inset-0 bg-black/85 backdrop-blur-md transition-opacity"
+        className="fixed inset-0 bg-black/75 backdrop-blur-md transition-opacity"
         onClick={step === 'FORM' ? onClose : undefined}
       />
 
       {/* Contenedor del Modal */}
-      <div className="relative w-full max-w-xl bg-slate-950 border border-slate-800 rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden z-10 my-8">
+      <div className="relative w-full max-w-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden z-10 my-8">
         {/* Encabezado */}
-        <div className="p-5 sm:p-6 border-b border-slate-800 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 flex items-center justify-between">
+        <div className="p-5 sm:p-6 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-100 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] animate-pulse"></span>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-white tracking-wide">
+              <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-wide">
                 {step === 'FORM' ? 'Finalizar Pedido • Transferencia' : '¡Pedido Reservado!'}
               </h3>
-              <p className="text-xs text-slate-400 font-mono">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                 {step === 'FORM' ? 'Ingresa tus datos de envío' : `Orden #${createdOrder?.id || ''}`}
               </p>
             </div>
@@ -244,7 +253,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             aria-label="Cerrar modal"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -257,22 +266,22 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         {step === 'FORM' && (
           <form onSubmit={handleConfirmOrder} className="p-5 sm:p-6 space-y-5">
             {/* Resumen del Monto */}
-            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div>
-                <span className="text-xs text-slate-400 uppercase tracking-wider font-mono">Total a Pagar</span>
-                <p className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
-                  ${formattedCartTotal} <span className="text-xs text-slate-400 font-normal">CLP</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">Total a Pagar</span>
+                <p className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-emerald-600 dark:from-cyan-400 dark:to-emerald-400">
+                  ${formattedCartTotal} <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">CLP</span>
                 </p>
               </div>
-              <span className="text-xs text-slate-400 bg-slate-800 px-2.5 py-1 rounded-full font-mono">
+              <span className="text-xs text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-800 px-2.5 py-1 rounded-full font-mono">
                 {cart.length} {cart.length === 1 ? 'artículo' : 'artículos'}
               </span>
             </div>
 
             {/* Mensaje de Error */}
             {errorMessage && (
-              <div className="p-3.5 rounded-xl bg-rose-950/80 border border-rose-800/80 text-rose-300 text-xs flex items-start gap-2.5">
-                <svg className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/80 border border-rose-200 dark:border-rose-800/80 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2.5">
+                <svg className="w-5 h-5 text-rose-500 dark:text-rose-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
                 <span>{errorMessage}</span>
@@ -282,8 +291,8 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             {/* Inputs del Formulario */}
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
-                  Nombre Completo <span className="text-cyan-400">*</span>
+                <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                  Nombre Completo <span className="text-cyan-600 dark:text-cyan-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -292,14 +301,14 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   onChange={handleInputChange}
                   placeholder="Ej: Tomás García"
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
-                    Correo Electrónico <span className="text-cyan-400">*</span>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                    Correo Electrónico <span className="text-cyan-600 dark:text-cyan-400">*</span>
                   </label>
                   <input
                     type="email"
@@ -308,13 +317,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     onChange={handleInputChange}
                     placeholder="tucorreo@ejemplo.cl"
                     required
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
-                    Teléfono / WhatsApp <span className="text-cyan-400">*</span>
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                    Teléfono / WhatsApp <span className="text-cyan-600 dark:text-cyan-400">*</span>
                   </label>
                   <input
                     type="tel"
@@ -323,14 +332,14 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     onChange={handleInputChange}
                     placeholder="+56 9 1234 5678"
                     required
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-300 mb-1.5">
-                  Dirección de Envío Completa <span className="text-cyan-400">*</span>
+                <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                  Dirección de Envío Completa <span className="text-cyan-600 dark:text-cyan-400">*</span>
                 </label>
                 <textarea
                   name="shippingAddress"
@@ -339,14 +348,14 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                   rows={2}
                   placeholder="Calle, Número, Depto, Comuna, Ciudad"
                   required
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all resize-none"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all resize-none"
                 />
               </div>
             </div>
 
             {/* Aviso informativo */}
-            <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-[11px] text-cyan-300 flex items-center gap-2">
-              <svg className="w-4 h-4 text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="p-3 rounded-xl bg-cyan-50 dark:bg-cyan-950/30 border border-cyan-200 dark:border-cyan-800/40 text-[11px] text-cyan-800 dark:text-cyan-300 flex items-center gap-2">
+              <svg className="w-4 h-4 text-cyan-600 dark:text-cyan-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span>El stock se descontará automáticamente de la base de datos al confirmar el pedido.</span>
@@ -382,55 +391,55 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           <div className="p-5 sm:p-6 space-y-6">
             {/* Mensaje de Éxito */}
             <div className="text-center space-y-2">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto shadow-sm dark:shadow-[0_0_20px_rgba(16,185,129,0.3)]">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-white">¡Pedido Reservado con Éxito!</h2>
-              <p className="text-xs text-slate-300">
-                Gracias, <span className="font-bold text-white">{createdOrder?.customerName}</span>. Hemos descontado el inventario y tu orden está en estado <span className="text-amber-400 font-bold">PENDIENTE</span>.
+              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">¡Pedido Reservado con Éxito!</h2>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Gracias, <span className="font-bold text-slate-900 dark:text-white">{createdOrder?.customerName}</span>. Hemos descontado el inventario y tu orden está en estado <span className="text-amber-600 dark:text-amber-400 font-bold">PENDIENTE</span>.
               </p>
             </div>
 
             {/* ALERTA CRÍTICA DESTACADA (Neón / Rojo) con Temporizador de 20 Minutos */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-950/90 via-red-900/80 to-rose-950/90 border-2 border-rose-500 shadow-[0_0_30px_rgba(244,63,94,0.3)] space-y-3">
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-rose-100 via-rose-50 to-rose-100 dark:from-rose-950/90 dark:via-red-900/80 dark:to-rose-950/90 border-2 border-rose-400 dark:border-rose-500 shadow-sm dark:shadow-[0_0_30px_rgba(244,63,94,0.3)] space-y-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                <div className="flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs font-bold uppercase tracking-wider">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
                   <span>Tiempo de Reserva</span>
                 </div>
-                <span className="font-mono text-xl font-black text-white bg-black/60 px-3 py-1 rounded-lg border border-rose-500/50 shadow-inner">
+                <span className="font-mono text-xl font-black text-rose-800 dark:text-white bg-white/80 dark:bg-black/60 px-3 py-1 rounded-lg border border-rose-300 dark:border-rose-500/50 shadow-inner">
                   ⏱️ {formattedTimer}
                 </span>
               </div>
 
-              <p className="text-xs sm:text-sm font-extrabold text-rose-100 leading-snug">
+              <p className="text-xs sm:text-sm font-extrabold text-rose-900 dark:text-rose-100 leading-snug">
                 ⚠️ ¡Tu pedido ha sido reservado! Tienes exactamente{' '}
-                <span className="text-white underline decoration-rose-400 font-black">20 MINUTOS</span> para realizar la transferencia y enviar el comprobante a nuestro WhatsApp/Correo. De lo contrario, el sistema cancelará tu pedido y liberará el stock.
+                <span className="text-rose-950 dark:text-white underline decoration-rose-400 font-black">20 MINUTOS</span> para realizar la transferencia y enviar el comprobante a nuestro WhatsApp/Correo. De lo contrario, el sistema cancelará tu pedido y liberará el stock.
               </p>
             </div>
 
             {/* Ficha de Datos Bancarios */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-3.5">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                <span className="text-xs font-mono uppercase tracking-widest text-cyan-400 font-bold">
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 space-y-3.5">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                <span className="text-xs font-mono uppercase tracking-widest text-cyan-700 dark:text-cyan-400 font-bold">
                   Datos de Transferencia Bancaria
                 </span>
-                <span className="text-xs font-mono font-bold text-emerald-400">
+                <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
                   Total: ${(createdOrder?.totalAmount || 0).toLocaleString('es-CL')} CLP
                 </span>
               </div>
 
               <div className="space-y-2 text-xs">
                 {/* Banco */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Banco:</span>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Banco:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">{bankDetails.bank}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{bankDetails.bank}</span>
                     <button
                       onClick={() => copyToClipboard(bankDetails.bank, 'bank')}
-                      className="text-cyan-400 hover:text-white text-[11px] font-mono"
+                      className="text-cyan-600 dark:text-cyan-400 hover:text-slate-900 dark:hover:text-white text-[11px] font-mono"
                     >
                       {copiedField === 'bank' ? '✓' : 'Copiar'}
                     </button>
@@ -438,13 +447,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </div>
 
                 {/* Tipo de Cuenta */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Tipo de Cuenta:</span>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Tipo de Cuenta:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">{bankDetails.accountType}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{bankDetails.accountType}</span>
                     <button
                       onClick={() => copyToClipboard(bankDetails.accountType, 'type')}
-                      className="text-cyan-400 hover:text-white text-[11px] font-mono"
+                      className="text-cyan-600 dark:text-cyan-400 hover:text-slate-900 dark:hover:text-white text-[11px] font-mono"
                     >
                       {copiedField === 'type' ? '✓' : 'Copiar'}
                     </button>
@@ -452,13 +461,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </div>
 
                 {/* Número de Cuenta */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Número de Cuenta:</span>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Número de Cuenta:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-cyan-300 font-mono">{bankDetails.accountNumber}</span>
+                    <span className="font-bold text-cyan-700 dark:text-cyan-300 font-mono">{bankDetails.accountNumber}</span>
                     <button
                       onClick={() => copyToClipboard(bankDetails.accountNumber, 'acc')}
-                      className="text-cyan-400 hover:text-white text-[11px] font-mono"
+                      className="text-cyan-600 dark:text-cyan-400 hover:text-slate-900 dark:hover:text-white text-[11px] font-mono"
                     >
                       {copiedField === 'acc' ? '✓' : 'Copiar'}
                     </button>
@@ -466,13 +475,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </div>
 
                 {/* RUT */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">RUT Titular:</span>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">RUT Titular:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-white font-mono">{bankDetails.rut}</span>
+                    <span className="font-bold text-slate-900 dark:text-white font-mono">{bankDetails.rut}</span>
                     <button
                       onClick={() => copyToClipboard(bankDetails.rut, 'rut')}
-                      className="text-cyan-400 hover:text-white text-[11px] font-mono"
+                      className="text-cyan-600 dark:text-cyan-400 hover:text-slate-900 dark:hover:text-white text-[11px] font-mono"
                     >
                       {copiedField === 'rut' ? '✓' : 'Copiar'}
                     </button>
@@ -480,13 +489,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </div>
 
                 {/* Nombre Titular */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Nombre Titular:</span>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Nombre Titular:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">{bankDetails.holder}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{bankDetails.holder}</span>
                     <button
                       onClick={() => copyToClipboard(bankDetails.holder, 'holder')}
-                      className="text-cyan-400 hover:text-white text-[11px] font-mono"
+                      className="text-cyan-600 dark:text-cyan-400 hover:text-slate-900 dark:hover:text-white text-[11px] font-mono"
                     >
                       {copiedField === 'holder' ? '✓' : 'Copiar'}
                     </button>
@@ -494,13 +503,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </div>
 
                 {/* Correo */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Correo para Comprobante:</span>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Correo para Comprobante:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-white">{bankDetails.email}</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">{bankDetails.email}</span>
                     <button
                       onClick={() => copyToClipboard(bankDetails.email, 'email')}
-                      className="text-cyan-400 hover:text-white text-[11px] font-mono"
+                      className="text-cyan-600 dark:text-cyan-400 hover:text-slate-900 dark:hover:text-white text-[11px] font-mono"
                     >
                       {copiedField === 'email' ? '✓' : 'Copiar'}
                     </button>
@@ -508,13 +517,13 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                 </div>
 
                 {/* Asunto / Referencia */}
-                <div className="flex items-center justify-between p-2 rounded-lg bg-slate-950 border border-slate-800">
-                  <span className="text-slate-400">Asunto / Mensaje de Transf.:</span>
+                <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-500 dark:text-slate-400">Asunto / Mensaje de Transf.:</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-purple-300 font-mono">Pedido #{createdOrder?.id}</span>
+                    <span className="font-bold text-purple-700 dark:text-purple-300 font-mono">Pedido #{createdOrder?.id}</span>
                     <button
                       onClick={() => copyToClipboard(`Pedido #${createdOrder?.id}`, 'ref')}
-                      className="text-cyan-400 hover:text-white text-[11px] font-mono"
+                      className="text-cyan-600 dark:text-cyan-400 hover:text-slate-900 dark:hover:text-white text-[11px] font-mono"
                     >
                       {copiedField === 'ref' ? '✓' : 'Copiar'}
                     </button>
@@ -540,7 +549,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-700 transition-colors"
+                className="w-full py-3 px-4 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white text-xs font-semibold border border-slate-300 dark:border-slate-700 transition-colors"
               >
                 Volver a la Tienda
               </button>
