@@ -7,7 +7,9 @@ import { generateClient } from 'aws-amplify/data';
 import { uploadData } from 'aws-amplify/storage';
 import { StorageImage } from '@aws-amplify/ui-react-storage';
 import imageCompression from 'browser-image-compression';
+import { removeBackground } from '@imgly/background-removal';
 import type { Schema } from '@/amplify/data/resource';
+import SocialStudioModal from './SocialStudioModal';
 
 const client = generateClient<Schema>({ authMode: 'userPool' });
 
@@ -38,6 +40,7 @@ export default function AdminInventarioPage() {
   const [isAuthorized, setIsAuthorized] = useState<boolean>(false);
   const [products, setProducts] = useState<Schema['Product']['type'][]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [selectedProductForPost, setSelectedProductForPost] = useState<Schema['Product']['type'] | null>(null);
 
   // Form states
   const [name, setName] = useState('');
@@ -49,6 +52,7 @@ export default function AdminInventarioPage() {
   const [color, setColor] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [subiendoImagen, setSubiendoImagen] = useState(false);
+  const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [isOnSale, setIsOnSale] = useState<boolean>(false);
   const [creando, setCreando] = useState(false);
@@ -105,6 +109,44 @@ export default function AdminInventarioPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const handleMagicEraser = async () => {
+    if (!files || files.length === 0) return;
+    setIsProcessingImages(true);
+
+    try {
+      const processedFiles = await Promise.all(
+        files.map(async (file) => {
+          // 1. La IA quita el fondo (Retorna un Blob PNG)
+          const transparentBlob = await removeBackground(file);
+          const tempFile = new File([transparentBlob], 'temp.png', { type: 'image/png' });
+
+          // 2. Comprimir y convertir a WebP para máxima velocidad web
+          const compressionOptions = {
+            maxSizeMB: 0.3, // Máximo 300KB
+            maxWidthOrHeight: 1200,
+            useWebWorker: true,
+            fileType: 'image/webp', // Formato moderno con transparencia
+          };
+
+          const compressedBlob = await imageCompression(tempFile, compressionOptions);
+
+          // 3. Retornar el archivo final listo para AWS
+          const safeName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+          return new File([compressedBlob], `y2k-${safeName}-${Date.now()}.webp`, { type: 'image/webp' });
+        })
+      );
+
+      // Reemplaza el estado con los archivos optimizados
+      setFiles(processedFiles);
+      alert('¡Fondos eliminados y fotos optimizadas con éxito!');
+    } catch (error) {
+      console.error('Error procesando imágenes:', error);
+      alert('Hubo un error al procesar las imágenes.');
+    } finally {
+      setIsProcessingImages(false);
+    }
+  };
 
   async function handleGuardarPrenda(e: React.FormEvent) {
     e.preventDefault();
@@ -419,12 +461,32 @@ export default function AdminInventarioPage() {
                 className="w-full text-xs text-slate-700 dark:text-slate-300 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-200 dark:file:bg-slate-800 file:text-cyan-700 dark:file:text-cyan-400 hover:file:bg-slate-300 dark:hover:file:bg-slate-700 cursor-pointer bg-slate-50 dark:bg-slate-950 p-2 min-h-[44px] rounded-xl border border-slate-300 dark:border-slate-700 transition-all duration-300 ease-in-out"
               />
 
+              {/* Botón de Borrador Mágico con IA + Compresión WebP */}
+              <button
+                type="button"
+                onClick={handleMagicEraser}
+                disabled={isProcessingImages || files.length === 0}
+                className="bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 hover:from-indigo-400 hover:to-fuchsia-400 text-white font-bold py-2.5 px-4 rounded-xl mt-3 w-full shadow-[0_0_15px_rgba(168,85,247,0.3)] flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-mono tracking-wider"
+              >
+                {isProcessingImages ? (
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    <span>🪄 Recortando y Comprimiendo...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🪄</span>
+                    <span>Quitar Fondos antes de subir</span>
+                  </>
+                )}
+              </button>
+
               {files.length > 0 ? (
-                <p className="text-xs text-cyan-600 dark:text-cyan-400 font-bold mt-1.5 flex items-center gap-1">
+                <p className="text-xs text-cyan-600 dark:text-cyan-400 font-bold mt-2 flex items-center gap-1">
                   <span>✓</span> {files.length} {files.length === 1 ? 'archivo seleccionado' : 'archivos seleccionados'}
                 </p>
               ) : existingImageUrls.length > 0 ? (
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">
                   {existingImageUrls.length} {existingImageUrls.length === 1 ? 'foto guardada' : 'fotos guardadas'}. Selecciona fotos si deseas agregar más.
                 </p>
               ) : null}
@@ -553,14 +615,25 @@ export default function AdminInventarioPage() {
                         {p?.gender ? `• ${p.gender}` : ''}
                         {!p?.size && !p?.color && !p?.gender ? '-' : ''}
                       </td>
-                      <td className="p-3 text-right space-x-2">
+                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
                         <button
+                          type="button"
+                          onClick={() => setSelectedProductForPost(p)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 hover:text-white border border-cyan-700/60 font-mono font-bold text-[11px] shadow-sm hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all cursor-pointer mr-1"
+                          title="Generar post para Instagram / TikTok"
+                        >
+                          <span>📸</span>
+                          <span>Crear Post</span>
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => prepararEdicion(p)}
                           className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-semibold cursor-pointer"
                         >
                           Editar
                         </button>
                         <button
+                          type="button"
                           onClick={() => p?.id && eliminarPrenda(p.id)}
                           className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 font-semibold cursor-pointer"
                         >
@@ -575,6 +648,13 @@ export default function AdminInventarioPage() {
           )}
         </div>
       </div>
+
+      {/* Modal del Generador de Marketing para Redes Sociales */}
+      <SocialStudioModal
+        product={selectedProductForPost}
+        isOpen={!!selectedProductForPost}
+        onClose={() => setSelectedProductForPost(null)}
+      />
     </div>
   );
 }
