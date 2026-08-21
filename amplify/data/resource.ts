@@ -20,6 +20,8 @@ const schema = a.schema({
     // --- ESTADO ---
     isAvailable: a.boolean().default(true),
     isOnSale: a.boolean().default(false), // Producto en oferta / remate
+    promoType: a.string(),                // 'descuento' | 'remate'
+    salePrice: a.integer(),               // Precio rebajado / remate
   }).authorization(allow => [
     allow.guest().to(['read']),
     allow.authenticated().to(['read']),

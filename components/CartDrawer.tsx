@@ -357,7 +357,8 @@ export default function CartDrawer() {
               </div>
 
               {cart.map((item, idx) => {
-                const itemPrice = Number(item?.price ?? 0).toLocaleString('es-CL');
+                const effectivePrice = item?.isOnSale && item?.salePrice != null ? Number(item.salePrice) : Number(item?.price ?? 0);
+                const itemPrice = effectivePrice.toLocaleString('es-CL');
                 const issue = item?.id ? stockIssues[item.id] : undefined;
 
                 return (
@@ -400,7 +401,14 @@ export default function CartDrawer() {
                           </span>
                         </div>
                       ) : (
-                        <p className="text-sm font-extrabold text-cyan-600 dark:text-cyan-400 mt-1">${itemPrice}</p>
+                        <div className="flex items-baseline gap-1.5 mt-1">
+                          <p className="text-sm font-extrabold text-cyan-600 dark:text-cyan-400">${itemPrice}</p>
+                          {item?.isOnSale && item?.salePrice != null && (
+                            <span className="text-[10px] line-through text-slate-400 font-mono">
+                              ${Number(item?.price ?? 0).toLocaleString('es-CL')}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
 

@@ -19,13 +19,7 @@ const client = generateClient<Schema>();
 function PublicProductImage({ imagePath, alt }: { imagePath?: string | null; alt: string }) {
   if (!imagePath) {
     return (
-      <div className="w-full aspect-square bg-gray-900 flex flex-col items-center justify-center text-xs text-gray-500 font-mono relative border-b border-cyan-500/20 group-hover:border-cyan-500/40 transition-colors">
-        {/* Marcadores de esquina Cyber-Y2K */}
-        <div className="absolute top-2 left-2 text-[9px] font-mono text-cyan-500/40 select-none">◤</div>
-        <div className="absolute top-2 right-2 text-[9px] font-mono text-cyan-500/40 select-none">◥</div>
-        <div className="absolute bottom-2 left-2 text-[9px] font-mono text-cyan-500/40 select-none">◣</div>
-        <div className="absolute bottom-2 right-2 text-[9px] font-mono text-cyan-500/40 select-none">◢</div>
-        
+      <div className="relative w-full aspect-square overflow-hidden rounded-t-xl transition-colors duration-300 bg-slate-200 dark:bg-slate-900 flex flex-col items-center justify-center text-xs text-gray-500 font-mono">
         <svg className="w-10 h-10 mb-2 opacity-30 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
@@ -35,30 +29,55 @@ function PublicProductImage({ imagePath, alt }: { imagePath?: string | null; alt
   }
 
   return (
-    <div className="w-full aspect-square overflow-hidden bg-slate-950 relative flex items-center justify-center border-b border-cyan-500/20 group-hover:border-cyan-500/50 transition-colors">
-      {/* Retículas y esquinas técnicas 'Tech Card' */}
-      <div className="absolute top-2 left-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◤</div>
-      <div className="absolute top-2 right-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◥</div>
-      <div className="absolute bottom-2 left-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◣</div>
-      <div className="absolute bottom-2 right-2 z-10 text-[9px] font-mono text-cyan-400/60 select-none pointer-events-none drop-shadow">◢</div>
-      
-      {/* Sombra de viñeta técnica */}
-      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-slate-950/30 z-0 pointer-events-none" />
-
+    <div className="relative w-full aspect-square overflow-hidden rounded-t-xl transition-colors duration-300 bg-slate-200 dark:bg-white flex items-center justify-center">
       <StorageImage
         path={imagePath}
         alt={alt}
         loading="lazy"
-        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 relative z-0"
+        className="w-full h-full object-contain p-4 mix-blend-normal group-hover:scale-105 transition-transform duration-500 relative z-0"
         fallbackSrc="/favicon.ico"
       />
     </div>
   );
 }
 
+const heroSlides = [
+  {
+    id: 1,
+    tag: 'NUEVO DROP',
+    title: '35% DE DESCUENTO',
+    subtitle: 'Aprovecha estos magníficos descuentos de apertura.',
+    actionType: 'descuento' as const,
+    btnText: 'Ver Rebajas →',
+    socialLinks: undefined,
+  },
+  {
+    id: 2,
+    tag: 'LAST CHANCE',
+    title: 'REMATE FINAL',
+    subtitle: '¡Apúrate, últimas tallas disponibles!',
+    actionType: 'remate' as const,
+    btnText: 'Ver Remates →',
+    socialLinks: undefined,
+  },
+  {
+    id: 3,
+    tag: 'COMUNIDAD Y2K',
+    title: 'SÍGUENOS EN REDES',
+    subtitle: 'Únete a la cultura streetwear y entérate de los drops antes que nadie.',
+    actionType: 'social' as const,
+    btnText: undefined,
+    socialLinks: {
+      tiktok: 'https://www.tiktok.com/@y2kstore.cl',
+      instagram: 'https://www.instagram.com/y2kstore.cl',
+      facebook: 'https://www.facebook.com/y2kstore.cl',
+    },
+  },
+];
+
 function HomeContent() {
   const searchParams = useSearchParams();
-  const isSaleFilter = searchParams?.get('ofertas') === 'true';
+  const isSaleFilterParam = searchParams?.get('ofertas') === 'true';
 
   const [products, setProducts] = useState<Schema['Product']['type'][]>([]);
   const [banners, setBanners] = useState<Schema['MarketingBanner']['type'][]>([]);
@@ -67,10 +86,18 @@ function HomeContent() {
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [selectedGender, setSelectedGender] = useState<string>('Todos');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activePromo, setActivePromo] = useState<string | null>(isSaleFilterParam ? 'descuento' : null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [expandedGender, setExpandedGender] = useState<string | null>(null);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+
+  // Sincronizar parámetro URL de ofertas si está presente
+  useEffect(() => {
+    if (isSaleFilterParam) {
+      setActivePromo('descuento');
+    }
+  }, [isSaleFilterParam]);
 
   // Estado del usuario actual en Navbar (Dinámico)
   const [currentUser, setCurrentUser] = useState<{
@@ -162,9 +189,6 @@ function HomeContent() {
         const filterObj: any = {
           isAvailable: { eq: true },
         };
-        if (isSaleFilter) {
-          filterObj.isOnSale = { eq: true };
-        }
 
         const { data: items, errors } = await client.models.Product.list({
           authMode,
@@ -216,9 +240,6 @@ function HomeContent() {
         const filterObj: any = {
           isAvailable: { eq: true },
         };
-        if (isSaleFilter) {
-          filterObj.isOnSale = { eq: true };
-        }
 
         sub = client.models.Product.observeQuery({
           authMode,
@@ -250,16 +271,16 @@ function HomeContent() {
         sub.unsubscribe();
       }
     };
-  }, [isSaleFilter]);
+  }, []);
 
   // 3. Rotación Automática del Carrusel cada 5 segundos
   useEffect(() => {
-    if (banners.length <= 1) return;
+    if (heroSlides.length <= 1) return;
     const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % banners.length);
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [banners.length]);
+  }, []);
 
   const categories = ['Ropa', 'Zapatillas', 'Carteras', 'Colonias', 'Accesorios', 'Gorros', 'Cosmética', 'Otro'];
   const gendersList = ['Hombre', 'Mujer', 'Unisex', 'Infantil'];
@@ -274,19 +295,21 @@ function HomeContent() {
     }, 1200);
   };
 
-  // Lógica de Filtrado Combinado: Ofertas + Categoría + Género + Búsqueda por texto con resiliencia a nulos
-  const filteredProducts = products.filter((p) => {
-    if (!p) return false;
-    const matchSale = !isSaleFilter || p?.isOnSale === true;
-    const matchCategory = selectedCategory === 'Todas' || p?.category === selectedCategory;
-    const matchGender = selectedGender === 'Todos' || p?.gender === selectedGender;
-    const matchSearch =
+  // Lógica de Filtrado Combinado: Ofertas (activePromo con promoType) + Categoría + Género + Búsqueda por texto con resiliencia a nulos
+  const filteredProducts = products.filter((product) => {
+    if (!product) return false;
+    const matchesSale = activePromo
+      ? (product.isOnSale === true && (product.promoType === activePromo || (!product.promoType && activePromo === 'descuento')))
+      : true;
+    const matchesCategory = selectedCategory === 'Todas' || product.category === selectedCategory;
+    const matchesGender = selectedGender === 'Todos' || product.gender === selectedGender;
+    const matchesSearch =
       !searchQuery.trim() ||
-      (p?.name?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
-      (p?.category?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
-      (p?.color?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
-      (p?.brand?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false);
-    return matchSale && matchCategory && matchGender && matchSearch;
+      (product.name?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
+      (product.category?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
+      (product.color?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false) ||
+      (product.brand?.toLowerCase().includes(searchQuery.toLowerCase().trim()) ?? false);
+    return matchesSale && matchesCategory && matchesGender && matchesSearch;
   });
 
   return (
@@ -412,14 +435,18 @@ function HomeContent() {
 
             {/* Accesos Rápidos en Sidebar */}
             <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-2 font-mono text-xs">
-              <Link
-                href="/?ofertas=true"
-                onClick={() => setIsSidebarOpen(false)}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-white border border-rose-200 dark:border-rose-800/60 transition"
+              <button
+                type="button"
+                onClick={() => {
+                  setActivePromo('remate');
+                  setIsSidebarOpen(false);
+                  document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-white border border-rose-200 dark:border-rose-800/60 transition cursor-pointer text-left"
               >
                 <span>🔥 Ver Remates y Ofertas</span>
                 <span className="text-rose-500 dark:text-rose-400">→</span>
-              </Link>
+              </button>
 
               <Link
                 href="/cuenta"
@@ -613,89 +640,96 @@ function HomeContent() {
 
       {/* CARRUSEL DE MARKETING DINÁMICO (HERO SLIDER) */}
       <section className="relative overflow-hidden border-b border-cyan-500/20 bg-slate-950 min-h-[360px] sm:min-h-[440px] flex flex-col justify-between">
-        {/* Fondo con Imagen o Patrón Cyber */}
-        {banners.length > 0 && banners[currentSlide]?.imageUrl ? (
-          <div className="absolute inset-0 z-0">
-            <StorageImage
-              path={banners[currentSlide].imageUrl!}
-              alt={banners[currentSlide].title || 'Hero Banner'}
-              className="w-full h-full object-cover object-center animate-fadeIn"
-            />
-            {/* Overlay Oscuro Cyber */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/75 to-slate-950/90 backdrop-blur-[2px]" />
-          </div>
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/80 to-slate-950 z-0">
-            <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293715_1px,transparent_1px),linear-gradient(to_bottom,#1f293715_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
-          </div>
-        )}
+        {/* Fondo con Patrón Cyber */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/80 to-slate-950 z-0">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293715_1px,transparent_1px),linear-gradient(to_bottom,#1f293715_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+        </div>
 
         {/* Contenido Principal del Slide */}
         <div className="max-w-6xl mx-auto w-full px-4 sm:px-8 py-10 sm:py-14 text-center space-y-4 relative z-10 flex-1 flex flex-col justify-center items-center">
-          {banners.length > 0 ? (
-            <Link
-              href={banners[currentSlide]?.actionUrl || '#'}
-              key={banners[currentSlide]?.id || currentSlide}
-              className={`space-y-4 animate-fadeIn max-w-3xl block transition-all duration-300 ${
-                banners[currentSlide]?.actionUrl ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default'
-              }`}
-            >
-              {/* Badge Dinámico */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-950/70 text-fuchsia-300 text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_rgba(217,70,239,0.35)]">
-                <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-ping" />
-                <span>{banners[currentSlide]?.badgeText || 'DESTACADO'}</span>
-              </div>
-
-              {/* Título */}
-              <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white uppercase leading-tight drop-shadow group-hover:text-cyan-300 transition-colors">
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-400">
-                  {banners[currentSlide]?.title || 'Y2K DROP COLLECTION'}
-                </span>
-              </h2>
-
-              {/* Subtítulo */}
-              {banners[currentSlide]?.subtitle && (
-                <p className="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-sm">
-                  {banners[currentSlide]?.subtitle}
-                </p>
-              )}
-
-              {banners[currentSlide]?.actionUrl && (
-                <div className="pt-1">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-cyan-400 bg-cyan-950/80 px-3 py-1 rounded-full border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
-                    <span>Ver Promoción</span>
-                    <span>→</span>
-                  </span>
+          {(() => {
+            const slide = heroSlides[currentSlide] || heroSlides[0];
+            return (
+              <div
+                key={slide.id}
+                className="space-y-4 animate-fadeIn max-w-3xl block transition-all duration-300"
+              >
+                {/* Badge Dinámico */}
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-950/70 text-fuchsia-300 text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_rgba(217,70,239,0.35)]">
+                  <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-ping" />
+                  <span>{slide.tag}</span>
                 </div>
-              )}
-            </Link>
-          ) : (
-            /* Fallback por Defecto */
-            <div className="space-y-4 max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan-500/30 bg-cyan-950/40 text-cyan-400 text-xs font-mono tracking-widest uppercase">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                <span>DROP COLLECTION // 2000s AESTHETICS</span>
+
+                {/* Título */}
+                <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white uppercase leading-tight drop-shadow">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-400">
+                    {slide.title}
+                  </span>
+                </h2>
+
+                {/* Subtítulo */}
+                {slide.subtitle && (
+                  <p className="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-sm">
+                    {slide.subtitle}
+                  </p>
+                )}
+
+                {/* Renderizado Condicional de los Botones (En el JSX del Carrusel) */}
+                <div className="mt-8 flex justify-center animate-fade-in-up">
+                  {slide.actionType === 'social' ? (
+                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap justify-center">
+                      <a
+                        href={slide.socialLinks?.tiktok}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-6 py-2 rounded-full border border-cyan-400 text-cyan-400 hover:bg-cyan-400/20 transition-colors font-bold tracking-widest text-sm"
+                      >
+                        TIKTOK
+                      </a>
+                      <a
+                        href={slide.socialLinks?.instagram}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-6 py-2 rounded-full border border-fuchsia-500 text-fuchsia-500 hover:bg-fuchsia-500/20 transition-colors font-bold tracking-widest text-sm"
+                      >
+                        INSTAGRAM
+                      </a>
+                      <a
+                        href={slide.socialLinks?.facebook}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-6 py-2 rounded-full border border-blue-500 text-blue-500 hover:bg-blue-500/20 transition-colors font-bold tracking-widest text-sm"
+                      >
+                        FACEBOOK
+                      </a>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivePromo(slide.actionType);
+                        document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                      className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-3 px-8 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all transform hover:scale-105 cursor-pointer font-mono text-sm tracking-wider"
+                    >
+                      {slide.btnText}
+                    </button>
+                  )}
+                </div>
               </div>
-
-              <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white uppercase leading-tight">
-                FUTURE NOSTALGIA <br className="hidden sm:inline" />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-500">
-                  Y2K STREETWEAR
-                </span>
-              </h2>
-
-              <p className="text-xs sm:text-base text-slate-400 max-w-2xl mx-auto font-light leading-relaxed">
-                Prendas únicas, zapatillas icónicas y accesorios retro-futuristas curados para la era digital. Despachos rápidos y retiros en tienda.
-              </p>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Quick Filters de Categorías */}
           <div className="flex flex-wrap items-center justify-center gap-2 pt-3">
             <button
-              onClick={() => { setSelectedCategory('Todas'); setSelectedGender('Todos'); }}
+              onClick={() => {
+                setSelectedCategory('Todas');
+                setSelectedGender('Todos');
+                setActivePromo(null);
+              }}
               className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all duration-300 cursor-pointer ${
-                selectedCategory === 'Todas' && selectedGender === 'Todos'
+                selectedCategory === 'Todas' && selectedGender === 'Todos' && !activePromo
                   ? 'bg-cyan-500 text-black font-bold shadow-[0_0_15px_rgba(6,182,212,0.5)]'
                   : 'bg-white dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
               }`}
@@ -707,7 +741,7 @@ function HomeContent() {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all duration-300 cursor-pointer ${
-                  selectedCategory === cat
+                  selectedCategory === cat && !activePromo
                     ? 'bg-cyan-500 text-black font-bold shadow-[0_0_15px_rgba(6,182,212,0.5)]'
                     : 'bg-white dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
                 }`}
@@ -715,16 +749,27 @@ function HomeContent() {
                 {cat}
               </button>
             ))}
+
+            {/* Burbuja / Badge de Filtro Activo (UX) */}
+            {activePromo && (
+              <button
+                type="button"
+                onClick={() => setActivePromo(null)}
+                className="ml-2 bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/50 rounded-full px-4 py-1 text-sm flex items-center gap-2 hover:bg-fuchsia-600/40 shadow-[0_0_12px_rgba(217,70,239,0.3)] transition-all animate-fadeIn cursor-pointer"
+              >
+                🔥 {activePromo === 'remate' ? 'Remates Activos' : 'Descuentos Activos'} <span className="text-xs">✕</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Controles de Navegación del Carrusel (Flechas y Dots) */}
-        {banners.length > 1 && (
+        {heroSlides.length > 1 && (
           <div className="relative z-20 pb-4 max-w-6xl mx-auto w-full px-4 flex items-center justify-between">
             {/* Flecha Izquierda */}
             <button
               type="button"
-              onClick={() => setCurrentSlide((prev) => (prev - 1 + banners.length) % banners.length)}
+              onClick={() => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length)}
               className="p-2 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
               aria-label="Slide anterior"
             >
@@ -735,7 +780,7 @@ function HomeContent() {
 
             {/* Dots Indicadores */}
             <div className="flex items-center gap-2">
-              {banners.map((_, idx) => (
+              {heroSlides.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"
@@ -753,7 +798,7 @@ function HomeContent() {
             {/* Flecha Derecha */}
             <button
               type="button"
-              onClick={() => setCurrentSlide((prev) => (prev + 1) % banners.length)}
+              onClick={() => setCurrentSlide((prev) => (prev + 1) % heroSlides.length)}
               className="p-2 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
               aria-label="Slide siguiente"
             >
@@ -766,25 +811,26 @@ function HomeContent() {
       </section>
 
       {/* CATÁLOGO DE PRODUCTOS (GRID) */}
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-8 py-10 space-y-6">
+      <main id="catalogo" className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-8 py-10 space-y-6">
         {/* Barra informativa de resultados */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-200 dark:border-slate-800/80 font-mono text-xs">
           <div className="text-slate-600 dark:text-slate-400 flex items-center gap-2 flex-wrap">
             <span>Mostrando:</span>
-            {isSaleFilter ? (
+            {activePromo ? (
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-rose-600 dark:text-rose-400 font-bold font-mono flex items-center gap-1.5 bg-rose-100 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-600/50 px-2.5 py-1 rounded shadow-sm dark:shadow-[0_0_10px_rgba(244,63,94,0.3)]">
                   <span>🔥</span>
-                  <span>PRODUCTOS EN REMATE / OFERTAS</span>
+                  <span>{activePromo === 'remate' ? 'PRODUCTOS EN REMATE FINAL' : 'PRODUCTOS EN REBAJA / DESCUENTO'}</span>
                 </span>
-                <Link
-                  href="/"
+                <button
+                  type="button"
+                  onClick={() => setActivePromo(null)}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-slate-700 hover:border-cyan-500/50 text-[11px] font-mono transition shadow-sm cursor-pointer"
                   title="Eliminar filtro de ofertas y volver al catálogo completo"
                 >
                   <span className="text-rose-500 font-bold">✕</span>
                   <span>Quitar Filtro</span>
-                </Link>
+                </button>
               </div>
             ) : (
               <span className="text-cyan-600 dark:text-cyan-400 font-bold">
@@ -792,7 +838,7 @@ function HomeContent() {
                 {selectedCategory !== 'Todas' ? selectedCategory : 'Todos los productos'}
               </span>
             )}
-            {isSaleFilter && selectedCategory !== 'Todas' && (
+            {activePromo && selectedCategory !== 'Todas' && (
               <span className="text-cyan-600 dark:text-cyan-400 font-bold">
                 • {selectedCategory}
               </span>
@@ -829,18 +875,20 @@ function HomeContent() {
                   setSelectedCategory('Todas');
                   setSelectedGender('Todos');
                   setSearchQuery('');
+                  setActivePromo(null);
                 }}
                 className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-mono font-bold transition cursor-pointer shadow-sm"
               >
                 Restablecer Filtros
               </button>
-              {isSaleFilter && (
-                <Link
-                  href="/"
+              {activePromo && (
+                <button
+                  type="button"
+                  onClick={() => setActivePromo(null)}
                   className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white rounded-xl text-xs font-mono font-bold transition border border-slate-300 dark:border-slate-700 cursor-pointer"
                 >
                   Volver a Todos los Productos
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -864,8 +912,12 @@ function HomeContent() {
                     {/* Badges de Oferta / Talla / Stock */}
                     <div className="absolute top-2.5 right-2.5 flex flex-col items-end gap-1 pointer-events-none">
                       {product.isOnSale && (
-                        <span className="px-2 py-0.5 rounded bg-rose-600/90 dark:bg-rose-950/95 backdrop-blur-md text-[10px] font-mono font-black text-white dark:text-rose-300 border border-rose-400 dark:border-rose-600/70 shadow-sm dark:shadow-[0_0_10px_rgba(244,63,94,0.5)] animate-pulse">
-                          🔥 OFERTA
+                        <span className={`px-2 py-0.5 rounded backdrop-blur-md text-[10px] font-mono font-black border shadow-sm animate-pulse ${
+                          product.promoType === 'remate'
+                            ? 'bg-rose-600/90 dark:bg-rose-950/95 text-white dark:text-rose-300 border-rose-400 dark:border-rose-600/70 shadow-[0_0_10px_rgba(244,63,94,0.5)]'
+                            : 'bg-fuchsia-600/90 dark:bg-fuchsia-950/95 text-white dark:text-fuchsia-300 border-fuchsia-400 dark:border-fuchsia-600/70 shadow-[0_0_10px_rgba(217,70,239,0.5)]'
+                        }`}>
+                          {product.promoType === 'remate' ? '🔥 REMATE' : '🏷️ REBAJA'}
                         </span>
                       )}
                       {product.size && (
@@ -932,7 +984,7 @@ function HomeContent() {
                               />
                             </svg>
                             <span className="truncate">
-                              AGREGAR AL CARRITO • ${Number(product.price).toLocaleString('es-CL')}
+                              AGREGAR AL CARRITO • ${Number(product.isOnSale && product.salePrice ? product.salePrice : product.price).toLocaleString('es-CL')}
                             </span>
                           </>
                         )}

@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import html2canvas from 'html2canvas';
-import { getUrl } from 'aws-amplify/storage';
-import { removeBackground } from '@imgly/background-removal';
+import domtoimage from 'dom-to-image';
+import { downloadData } from 'aws-amplify/storage';
 import type { Schema } from '@/amplify/data/resource';
 
 interface SocialStudioModalProps {
@@ -20,7 +19,6 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
   // Estados de personalización en vivo
   const [imageUrl, setImageUrl] = useState<string>('');
   const [loadingImage, setLoadingImage] = useState<boolean>(false);
-  const [isRemovingBg, setIsRemovingBg] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [copiedNotification, setCopiedNotification] = useState<boolean>(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
@@ -71,7 +69,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
     }
   }, [product?.id, product?.isOnSale, discountPercentage]);
 
-  // Cargar y resolver la URL de la imagen de Amplify Storage en Base64 seguro (cache: 'no-cache')
+  // Cargar y descargar la imagen de Amplify Storage en Base64 local para evitar Tainted Canvas
   useEffect(() => {
     if (!photoPath) {
       setImageUrl('');
@@ -80,7 +78,8 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
     }
 
     let isMounted = true;
-    const loadFreshImage = async () => {
+
+    const loadLocalImage = async () => {
       setLoadingImage(true);
       try {
         if (photoPath.startsWith('data:')) {
@@ -91,143 +90,127 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
           return;
         }
 
-        let fetchTarget: RequestInfo | URL = photoPath;
-
-        if (!photoPath.startsWith('http://') && !photoPath.startsWith('https://') && !photoPath.startsWith('/')) {
-          // 1. Obtener la URL firmada intacta (sin alterar parámetros criptográficos)
-          const link = await getUrl({ path: photoPath });
-          fetchTarget = link.url;
+        if (photoPath.startsWith('http://') || photoPath.startsWith('https://') || photoPath.startsWith('/')) {
+          const response = await fetch(photoPath, { cache: 'no-cache' });
+          const blob = await response.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if (isMounted) {
+              setImageUrl(reader.result as string);
+              setLoadingImage(false);
+            }
+          };
+          reader.readAsDataURL(blob);
+          return;
         }
 
-        // 2. Hacer fetch ignorando la caché para no recibir una respuesta opaca (CORS)
-        const response = await fetch(fetchTarget, {
-          mode: 'cors',
-          cache: 'no-cache',
-        });
+        // 1. Descargamos el archivo real de AWS de forma segura
+        const { body } = await downloadData({ path: photoPath }).result;
+        const blob = await body.blob();
 
-        // 3. Convertir a Base64 local
-        const blob = await response.blob();
+        // 2. Lo convertimos a texto Base64 (Local)
         const reader = new FileReader();
         reader.onloadend = () => {
           if (isMounted) {
             setImageUrl(reader.result as string);
-            setLoadingImage(false); // Apagar spinner solo cuando el texto Base64 esté listo
+            setLoadingImage(false);
           }
         };
         reader.readAsDataURL(blob);
       } catch (error) {
-        console.error('Error cargando imagen segura:', error);
+        console.error('Error descargando imagen para Social Studio:', error);
         if (isMounted) {
           setLoadingImage(false);
         }
       }
     };
 
-    loadFreshImage();
-
+    loadLocalImage();
     return () => {
       isMounted = false;
     };
   }, [photoPath]);
 
-  // Lógica de Recorte Mágico con IA (Eliminar fondo)
-  const handleMagicEraser = async () => {
-    if (!imageUrl || isRemovingBg) return;
-    setIsRemovingBg(true);
-    try {
-      // La IA procesa la imagen actual (Base64 o URL)
-      const imageBlob = await removeBackground(imageUrl);
-      // Convertir el blob transparente a Base64 para total compatibilidad con html2canvas
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-        setIsRemovingBg(false);
-      };
-      reader.onerror = () => {
-        const transparentUrl = URL.createObjectURL(imageBlob);
-        setImageUrl(transparentUrl);
-        setIsRemovingBg(false);
-      };
-      reader.readAsDataURL(imageBlob);
-    } catch (error) {
-      console.error('Error al quitar el fondo con IA:', error);
-      alert('Hubo un error al procesar el recorte con la IA.');
-      setIsRemovingBg(false);
-    }
-  };
+  // Lógica de Descarga ultra-estable con dom-to-image
+  const handleDownload = async () => {
+    if (!postRef.current) return;
 
-  // Lógica de Descarga con html2canvas
-  async function handleDownload() {
-    if (!postRef.current || !product) return;
+    // Dimensiones oficiales para Instagram Feed
+    const targetWidth = 1080;
+    const targetHeight = 1080;
+    // Factor de escala para HD (2 = 2160x2160)
+    const scale = 2;
+
     setIsExporting(true);
 
     try {
-      // Pequeño retardo para asegurar estabilización de fuentes y renderizado
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      const canvas = await html2canvas(postRef.current, {
-        useCORS: true,
-        allowTaint: false,
-        scale: 2, // 2x para calidad Ultra-HD (2160x2160)
-        backgroundColor: null,
-        logging: false,
+      const dataUrl = await domtoimage.toPng(postRef.current, {
+        quality: 1,
+        width: targetWidth * scale,
+        height: targetHeight * scale,
+        style: {
+          transform: `scale(${scale})`, // Anulamos cualquier scale() previo del UI
+          transformOrigin: 'top left',
+          width: `${targetWidth}px`,
+          height: `${targetHeight}px`,
+          margin: '0'
+        }
       });
 
-      const dataUrl = canvas.toDataURL('image/png');
-      const safeProductName = (product.name || 'producto')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-
       const link = document.createElement('a');
-      link.download = `post-${safeProductName}.png`;
+      link.download = `y2k-post-${product?.name || 'promo'}.png`;
       link.href = dataUrl;
       link.click();
     } catch (error) {
-      console.error('Error exportando canvas con html2canvas:', error);
-      alert('Hubo un error al generar la imagen. Intenta de nuevo.');
+      console.error("Error ajustando la escala de la imagen:", error);
+      alert("Hubo un error al generar la imagen.");
     } finally {
       setIsExporting(false);
     }
-  }
+  };
 
   // Copiar imagen al portapapeles
-  async function handleCopyToClipboard() {
-    if (!postRef.current || !product) return;
+  const handleCopyToClipboard = async () => {
+    if (!postRef.current) return;
+
+    const targetWidth = 1080;
+    const targetHeight = 1080;
+    const scale = 2; 
+
     setIsExporting(true);
 
     try {
-      const canvas = await html2canvas(postRef.current, {
-        useCORS: true,
-        allowTaint: false,
-        scale: 2,
-        backgroundColor: null,
-        logging: false,
+      // Usamos toBlob en lugar de toPng para el portapapeles
+      const blob = await domtoimage.toBlob(postRef.current, {
+         quality: 1,
+         width: targetWidth * scale,
+         height: targetHeight * scale,
+         style: {
+           transform: `scale(${scale})`,
+           transformOrigin: 'top left',
+           width: `${targetWidth}px`,
+           height: `${targetHeight}px`,
+           margin: '0'
+         }
       });
 
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          setIsExporting(false);
-          return;
-        }
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blob })
-          ]);
-          setCopiedNotification(true);
-          setTimeout(() => setCopiedNotification(false), 3000);
-        } catch (clipErr) {
-          console.warn('Clipboard API no disponible, ejecutando descarga:', clipErr);
-          handleDownload();
-        } finally {
-          setIsExporting(false);
-        }
-      }, 'image/png');
-    } catch (err) {
-      console.error('Error al copiar al portapapeles:', err);
+      if (blob) {
+        // API nativa para copiar imágenes
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+
+        setCopiedNotification(true);
+        setTimeout(() => setCopiedNotification(false), 3000);
+        alert('¡Post copiado con éxito! Ya puedes pegarlo (Ctrl+V) en WhatsApp, Canva o Redes Sociales.');
+      }
+    } catch (error) {
+      console.error("Error al copiar al portapapeles:", error);
+      alert("Hubo un error al copiar o tu navegador no lo soporta.");
+    } finally {
       setIsExporting(false);
     }
-  }
+  };
 
   if (!isOpen || !product) return null;
 
@@ -317,26 +300,6 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                     </span>
                   )}
                 </div>
-
-                {/* BOTÓN DE BORRADOR MÁGICO CON IA */}
-                <button
-                  type="button"
-                  onClick={handleMagicEraser}
-                  disabled={!imageUrl || isRemovingBg || loadingImage}
-                  className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-400 hover:to-pink-400 text-white font-bold py-2.5 px-4 rounded-xl shadow-[0_0_15px_rgba(168,85,247,0.5)] flex items-center justify-center gap-2 w-full mt-3 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-xs font-mono tracking-wider"
-                >
-                  {isRemovingBg ? (
-                    <>
-                      <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                      <span>Analizando silueta con IA...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🪄</span>
-                      <span>Borrador Mágico (Quitar Fondo)</span>
-                    </>
-                  )}
-                </button>
               </div>
 
               {/* Selector de Foto si hay múltiples en Galería */}
@@ -510,7 +473,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
               <button
                 type="button"
                 onClick={handleDownload}
-                disabled={isExporting || loadingImage || isRemovingBg}
+                disabled={isExporting || loadingImage}
                 className="w-full py-3.5 px-4 rounded-xl font-black text-xs uppercase tracking-wider text-white bg-gradient-to-r from-cyan-500 via-sky-500 to-fuchsia-600 hover:from-cyan-400 hover:to-fuchsia-500 shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isExporting ? (
@@ -529,7 +492,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
               <button
                 type="button"
                 onClick={handleCopyToClipboard}
-                disabled={isExporting || loadingImage || isRemovingBg}
+                disabled={isExporting || loadingImage}
                 className="w-full py-2.5 px-4 rounded-xl font-mono font-bold text-xs uppercase tracking-wider text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white border border-slate-700 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {copiedNotification ? (
@@ -587,7 +550,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                     top: 0,
                     left: 0,
                   }}
-                  className={`relative overflow-hidden flex flex-col justify-between p-12 select-none ${themeStyles.bg}`}
+                  className={`w-[1080px] h-[1080px] relative overflow-hidden flex flex-col justify-between p-12 select-none ${themeStyles.bg}`}
                 >
                   {/* Capa de Efecto Radial y Gradientes de Luz Neón */}
                   <div
@@ -604,18 +567,12 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                     }}
                   />
 
-                  {/* Brackets y Marcadores Tecnológicos Y2K en las 4 Esquinas */}
-                  <div className="absolute top-6 left-6 font-mono text-xs font-black text-cyan-400/70 tracking-widest pointer-events-none">
+                  {/* Brackets y Marcadores Tecnológicos Y2K en las Esquinas Superiores */}
+                  <div className="absolute top-6 left-6 font-mono text-xs font-black text-cyan-400/70 tracking-widest pointer-events-none whitespace-nowrap flex-shrink-0 z-0">
                     ◤ ARCHIVE // 001
                   </div>
-                  <div className="absolute top-6 right-6 font-mono text-xs font-black text-fuchsia-400/70 tracking-widest pointer-events-none">
+                  <div className="absolute top-6 right-6 font-mono text-xs font-black text-fuchsia-400/70 tracking-widest pointer-events-none whitespace-nowrap flex-shrink-0 z-0">
                     SYS:AUTHENTIC ◢
-                  </div>
-                  <div className="absolute bottom-6 left-6 font-mono text-xs font-black text-cyan-400/70 tracking-widest pointer-events-none">
-                    ◣ Y2K_DROP
-                  </div>
-                  <div className="absolute bottom-6 right-6 font-mono text-xs font-black text-fuchsia-400/70 tracking-widest pointer-events-none">
-                    EDITION:2026 ◢
                   </div>
 
                   {/* ======================================================== */}
@@ -623,14 +580,14 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                   {/* ======================================================== */}
                   <div className="relative z-10 flex items-center justify-between w-full pt-2">
                     {/* Logo Y2K STORE con Efecto Neón Glow */}
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-3">
-                        <span className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)] animate-pulse" />
-                        <h1 className="text-4xl font-black tracking-widest text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)] font-sans">
+                    <div className="flex flex-col flex-shrink-0">
+                      <div className="flex items-center gap-3 whitespace-nowrap">
+                        <span className="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)] animate-pulse flex-shrink-0" />
+                        <h1 className="text-4xl font-black tracking-widest text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)] font-sans whitespace-nowrap">
                           Y2K <span className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.7)]">STORE</span>
                         </h1>
                       </div>
-                      <span className="font-mono text-xs tracking-[0.3em] text-slate-300 font-bold uppercase mt-1 pl-6">
+                      <span className="font-mono text-xs tracking-[0.3em] text-slate-300 font-bold uppercase mt-1 pl-6 whitespace-nowrap">
                         OFFICIAL ARCHIVE // STREETWEAR
                       </span>
                     </div>
@@ -659,24 +616,17 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                           CARGANDO FOTO DE PRODUCTO...
                         </span>
                       </div>
-                    ) : isRemovingBg ? (
-                      <div className="flex flex-col items-center justify-center space-y-4 p-8 rounded-3xl bg-purple-950/80 border border-purple-500/50 shadow-[0_0_40px_rgba(168,85,247,0.5)]">
-                        <div className="w-16 h-16 rounded-full border-4 border-fuchsia-400 border-t-transparent animate-spin shadow-[0_0_20px_rgba(217,70,239,0.8)]" />
-                        <span className="font-mono text-sm text-fuchsia-300 font-bold tracking-widest animate-pulse flex items-center gap-2">
-                          <span>🪄</span> BORRANDO FONDO CON IA...
-                        </span>
-                      </div>
                     ) : imageUrl ? (
                       /* Contenedor Div Estilo Tarjeta Flotante Transparente */
-                      <div className="relative p-2 bg-transparent flex items-center justify-center max-h-[580px] max-w-[880px] overflow-hidden">
+                      <div className="relative p-2 bg-transparent flex items-center justify-center max-h-[750px] max-w-[950px] w-full h-full overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={imageUrl}
                           alt={product.name || 'Prenda'}
-                          className="max-h-[540px] max-w-[840px] w-auto h-auto object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.8)] filter drop-shadow-[0_0_30px_rgba(6,182,212,0.25)] transition-all duration-300"
+                          className="h-[750px] max-h-[750px] max-w-[920px] w-auto object-contain drop-shadow-[0_25px_35px_rgba(0,0,0,0.8)] filter drop-shadow-[0_0_30px_rgba(6,182,212,0.25)] transition-all duration-300"
                           style={{
-                            maxHeight: '540px',
-                            maxWidth: '840px',
+                            maxHeight: '750px',
+                            maxWidth: '920px',
                           }}
                         />
                       </div>
@@ -693,31 +643,31 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                   {/* ======================================================== */}
                   {/* 3. SECCIÓN INFERIOR: Nombre, Precio Destacado e Info */}
                   {/* ======================================================== */}
-                  <div className="relative z-10 w-full space-y-4">
+                  <div className="w-full flex flex-col gap-2 mb-4 relative z-10">
                     {/* Caja de información tipo tarjeta translúcida de vidrio */}
                     <div className="p-6 rounded-3xl bg-slate-950/95 border border-slate-700/80 shadow-[0_15px_35px_rgba(0,0,0,0.8)] flex items-end justify-between gap-6">
                       {/* Lado Izquierdo: Categoría + Nombre */}
                       <div className="space-y-2 flex-1">
                         {/* Tags de Categoría y Detalles */}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-3.5 py-1 rounded-full text-xs font-mono font-black uppercase tracking-wider bg-cyan-950 text-cyan-300 border border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+                        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                          <span className="px-3.5 py-1 rounded-full text-xs font-mono font-black uppercase tracking-wider bg-cyan-950 text-cyan-300 border border-cyan-500/50 shadow-[0_0_12px_rgba(6,182,212,0.3)] whitespace-nowrap flex-shrink-0">
                             {product.category || 'EXCLUSIVO'}
                           </span>
 
                           {showStockInfo && (
                             <>
                               {product.gender && (
-                                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-slate-900 text-slate-300 border border-slate-700">
+                                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-slate-900 text-slate-300 border border-slate-700 whitespace-nowrap flex-shrink-0">
                                   {product.gender}
                                 </span>
                               )}
                               {product.size && (
-                                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-slate-900 text-slate-300 border border-slate-700">
+                                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-slate-900 text-slate-300 border border-slate-700 whitespace-nowrap flex-shrink-0">
                                   Talla: {product.size}
                                 </span>
                               )}
                               {product.color && (
-                                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-slate-900 text-slate-300 border border-slate-700">
+                                <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-slate-900 text-slate-300 border border-slate-700 whitespace-nowrap flex-shrink-0">
                                   {product.color}
                                 </span>
                               )}
@@ -744,11 +694,11 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
 
                     {/* Barra de Enlace & Envíos Inferior */}
                     {showStoreFooter && (
-                      <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-slate-950/70 border border-slate-800/80 font-mono text-xs text-slate-300">
-                        <span className="flex items-center gap-2 text-cyan-400 font-bold">
+                      <div className="flex items-center justify-between w-full px-4 py-2 rounded-xl bg-slate-950/70 border border-slate-800/80 font-mono text-[10px] sm:text-xs text-slate-300 whitespace-nowrap z-10">
+                        <span className="flex items-center gap-2 text-cyan-400 font-bold whitespace-nowrap">
                           <span>📦</span> ENVÍOS A TODO CHILE // RETIRO EN TIENDA
                         </span>
-                        <span className="flex items-center gap-2 text-fuchsia-300 font-bold">
+                        <span className="flex items-center gap-2 text-fuchsia-300 font-bold whitespace-nowrap">
                           <span>🔗</span> LINK DIRECTO EN NUESTRO PERFIL
                         </span>
                       </div>

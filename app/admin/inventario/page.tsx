@@ -55,6 +55,8 @@ export default function AdminInventarioPage() {
   const [isProcessingImages, setIsProcessingImages] = useState(false);
   const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [isOnSale, setIsOnSale] = useState<boolean>(false);
+  const [promoType, setPromoType] = useState<string>('descuento'); // 'descuento' o 'remate'
+  const [salePrice, setSalePrice] = useState<number | string>('');
   const [creando, setCreando] = useState(false);
 
   // Guardián de seguridad: Solo 'Super_Admin' y 'Admin_Tienda' pueden acceder
@@ -184,6 +186,9 @@ export default function AdminInventarioPage() {
         setSubiendoImagen(false);
       }
 
+      const parsedSalePrice = isOnSale && salePrice !== '' ? Number(salePrice) : undefined;
+      const finalPromoType = isOnSale ? promoType : undefined;
+
       if (prendaEnEdicion) {
         await client.models.Product.update({
           id: prendaEnEdicion,
@@ -198,6 +203,8 @@ export default function AdminInventarioPage() {
           imageUrls: finalImageUrls,
           isAvailable: stock > 0,
           isOnSale,
+          promoType: finalPromoType,
+          salePrice: parsedSalePrice,
         });
         setPrendaEnEdicion(null);
       } else {
@@ -213,6 +220,8 @@ export default function AdminInventarioPage() {
           imageUrls: finalImageUrls,
           isAvailable: stock > 0,
           isOnSale,
+          promoType: finalPromoType,
+          salePrice: parsedSalePrice,
         });
       }
 
@@ -225,6 +234,8 @@ export default function AdminInventarioPage() {
       setSize('');
       setColor('');
       setIsOnSale(false);
+      setPromoType('descuento');
+      setSalePrice('');
       setFiles([]);
       setExistingImageUrls([]);
       await fetchProducts();
@@ -247,6 +258,8 @@ export default function AdminInventarioPage() {
     setSize(product.size || '');
     setColor(product.color || '');
     setIsOnSale(Boolean(product.isOnSale));
+    setPromoType(product.promoType || 'descuento');
+    setSalePrice(product.salePrice != null ? product.salePrice : '');
 
     const imgs = product.imageUrls && product.imageUrls.length > 0
       ? (product.imageUrls.filter(Boolean) as string[])
@@ -318,10 +331,13 @@ export default function AdminInventarioPage() {
                   setGender('Unisex');
                   setSize('');
                   setColor('');
+                  setIsOnSale(false);
+                  setPromoType('descuento');
+                  setSalePrice('');
                   setFiles([]);
                   setExistingImageUrls([]);
                 }}
-                className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
               >
                 Cancelar
               </button>
@@ -424,14 +440,11 @@ export default function AdminInventarioPage() {
               </div>
             </div>
 
-            {/* Toggle de Producto en Remate / Oferta */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="text-base">🔥</span>
-                <div>
-                  <span className="font-bold text-slate-900 dark:text-white text-xs block">Producto en Remate / Oferta</span>
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Visible al filtrar por promociones</span>
-                </div>
+            {/* Contenedor del Switch Principal de Promoción */}
+            <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-950/80 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+              <div>
+                <h4 className="text-slate-900 dark:text-white font-bold text-xs">Activar Promoción</h4>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Visible en carrusel y filtros</p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
@@ -440,9 +453,58 @@ export default function AdminInventarioPage() {
                   onChange={(e) => setIsOnSale(e.target.checked)}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-300 dark:bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-rose-600 peer-checked:to-fuchsia-600 shadow-[0_0_10px_rgba(244,63,94,0.3)]"></div>
+                <div className="w-11 h-6 bg-slate-300 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-fuchsia-500 shadow-sm"></div>
               </label>
             </div>
+
+            {/* Controles de Promoción (Solo si el switch está ON) */}
+            {isOnSale && (
+              <div className="mt-2 p-4 bg-fuchsia-500/10 border border-fuchsia-500/30 rounded-xl animate-fade-in-down space-y-4">
+                <div>
+                  <label className="block text-xs text-fuchsia-600 dark:text-fuchsia-300 font-mono tracking-wider mb-2 font-bold">
+                    TIPO DE PROMOCIÓN *
+                  </label>
+                  <div className="flex gap-4">
+                    <label className="flex items-center gap-2 text-slate-800 dark:text-white text-sm cursor-pointer font-medium">
+                      <input
+                        type="radio"
+                        name="promoType"
+                        value="descuento"
+                        checked={promoType === 'descuento'}
+                        onChange={(e) => setPromoType(e.target.value)}
+                        className="accent-fuchsia-500"
+                      />
+                      Rebaja / Descuento
+                    </label>
+                    <label className="flex items-center gap-2 text-slate-800 dark:text-white text-sm cursor-pointer font-medium">
+                      <input
+                        type="radio"
+                        name="promoType"
+                        value="remate"
+                        checked={promoType === 'remate'}
+                        onChange={(e) => setPromoType(e.target.value)}
+                        className="accent-fuchsia-500"
+                      />
+                      🔥 Remate Final
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-fuchsia-600 dark:text-fuchsia-300 font-mono tracking-wider mb-2 font-bold">
+                    PRECIO REBAJADO ($ CLP) *
+                  </label>
+                  <input
+                    type="number"
+                    value={salePrice}
+                    onChange={(e) => setSalePrice(e.target.value)}
+                    placeholder="Ej. 19990"
+                    min={0}
+                    className="w-full bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl p-2.5 text-slate-900 dark:text-white outline-none focus:border-fuchsia-500 font-mono text-sm shadow-inner"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Subida de Múltiples Imágenes (Galería) */}
             <div>
@@ -584,8 +646,12 @@ export default function AdminInventarioPage() {
                         <div className="flex items-center gap-2">
                           <span>{p?.name || 'Sin nombre'}</span>
                           {p?.isOnSale && (
-                            <span className="bg-rose-100 dark:bg-rose-950/90 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-600/70 text-[9px] font-mono font-black px-1.5 py-0.5 rounded shadow-sm dark:shadow-[0_0_8px_rgba(244,63,94,0.4)] animate-pulse">
-                              🔥 OFERTA
+                            <span className={`border text-[9px] font-mono font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse ${
+                              p.promoType === 'remate'
+                                ? 'bg-rose-100 dark:bg-rose-950/90 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-600/70 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
+                                : 'bg-fuchsia-100 dark:bg-fuchsia-950/90 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-300 dark:border-fuchsia-600/70 shadow-[0_0_8px_rgba(217,70,239,0.4)]'
+                            }`}>
+                              {p.promoType === 'remate' ? '🔥 REMATE' : '🏷️ REBAJA'}
                             </span>
                           )}
                         </div>
@@ -595,7 +661,16 @@ export default function AdminInventarioPage() {
                           {p?.category || 'General'}
                         </span>
                       </td>
-                      <td className="p-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">${Number(p?.price ?? 0).toLocaleString('es-CL')}</td>
+                      <td className="p-3 font-mono font-bold">
+                        {p?.isOnSale && p?.salePrice ? (
+                          <div className="flex flex-col">
+                            <span className="text-rose-600 dark:text-rose-400 font-black">${Number(p.salePrice).toLocaleString('es-CL')}</span>
+                            <span className="text-[10px] text-slate-400 line-through">${Number(p?.price ?? 0).toLocaleString('es-CL')}</span>
+                          </div>
+                        ) : (
+                          <span className="text-emerald-600 dark:text-emerald-400">${Number(p?.price ?? 0).toLocaleString('es-CL')}</span>
+                        )}
+                      </td>
                       <td className="p-3">
                         <span
                           className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${

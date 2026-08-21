@@ -274,8 +274,8 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start">
               {/* Columna Izquierda: Galería de Imágenes (Grande + Miniaturas) con Estética Tech Card */}
               <div className="w-full space-y-4">
-                {/* Contenedor Principal de Imagen con Proporción Fija, Fondo Skeleton y Brillo Neón */}
-                <div className="relative w-full aspect-square bg-slate-900 rounded-2xl border-2 border-cyan-500/40 overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.2),inset_0_0_20px_rgba(6,182,212,0.05)] group">
+                {/* Contenedor Principal de Imagen con Proporción Fija, Fondo Transparente y Brillo Neón */}
+                <div className="relative w-full aspect-square bg-transparent rounded-2xl border-2 border-cyan-500/40 overflow-hidden shadow-[0_0_30px_rgba(6,182,212,0.2),inset_0_0_20px_rgba(6,182,212,0.05)] group flex items-center justify-center">
                   {/* Marcadores de esquina Cyber-Y2K */}
                   <div className="absolute top-2.5 left-2.5 z-20 text-[10px] font-mono text-cyan-400 select-none pointer-events-none drop-shadow">◤</div>
                   <div className="absolute top-2.5 right-2.5 z-20 text-[10px] font-mono text-cyan-400 select-none pointer-events-none drop-shadow">◥</div>
@@ -302,14 +302,14 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
                     </span>
                   </div>
 
-                  {/* Renderizado de StorageImage Principal con absolute inset-0, loading=eager y transición suave */}
+                  {/* Renderizado de StorageImage Principal con object-contain p-4 y transición suave */}
                   {activeImage ? (
                     <StorageImage
                       key={activeImage}
                       path={activeImage}
                       alt={product.name || 'Foto del producto'}
                       loading="eager"
-                      className="absolute inset-0 w-full h-full object-cover rounded-2xl transition-opacity duration-300 z-0"
+                      className="w-full h-full object-contain p-4 mix-blend-normal rounded-2xl transition-opacity duration-300 z-0"
                       fallbackSrc="/favicon.ico"
                     />
                   ) : (
@@ -407,6 +407,15 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
               <div className="flex flex-col space-y-6">
                 {/* Badges de Categoría, Género y Marca estilo Cyber Chip */}
                 <div className="flex flex-wrap items-center gap-2">
+                  {product.isOnSale && (
+                    <span className={`text-xs font-mono font-black tracking-wider uppercase px-3 py-1 rounded-full border shadow-sm animate-pulse ${
+                      product.promoType === 'remate'
+                        ? 'bg-rose-100 dark:bg-rose-950/90 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-600/70 shadow-[0_0_10px_rgba(244,63,94,0.3)]'
+                        : 'bg-fuchsia-100 dark:bg-fuchsia-950/90 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-300 dark:border-fuchsia-600/70 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
+                    }`}>
+                      {product.promoType === 'remate' ? '🔥 REMATE FINAL' : '🏷️ REBAJA ESPECIAL'}
+                    </span>
+                  )}
                   <span className="text-xs font-mono font-bold tracking-wider uppercase px-3 py-1 rounded-full bg-cyan-100 dark:bg-cyan-950/90 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700/50 shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]">
                     CAT: {product.category || 'General'}
                   </span>
@@ -436,10 +445,23 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
                 {/* Precio Grande con Estilo Monitor Neón */}
                 <div className="p-5 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-slate-950 border border-slate-200 dark:border-cyan-500/30 shadow-md dark:shadow-[0_0_20px_rgba(6,182,212,0.1)] flex items-baseline justify-between">
                   <div>
-                    <span className="text-xs font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">VALOR UNITARIO</span>
-                    <span className="text-3xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 dark:from-cyan-400 dark:via-teal-300 dark:to-emerald-400 drop-shadow-sm dark:drop-shadow-[0_0_12px_rgba(6,182,212,0.35)]">
-                      ${formattedPrice} <span className="text-xs font-normal text-slate-500 dark:text-slate-400 font-sans">CLP</span>
+                    <span className="text-xs font-mono uppercase tracking-widest text-slate-500 dark:text-slate-400 block mb-1">
+                      {product.isOnSale && product.salePrice ? 'PRECIO PROMOCIONAL' : 'VALOR UNITARIO'}
                     </span>
+                    {product.isOnSale && product.salePrice ? (
+                      <div className="flex items-baseline gap-3 flex-wrap">
+                        <span className="text-3xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-rose-600 via-pink-600 to-fuchsia-600 dark:from-rose-400 dark:via-pink-400 dark:to-fuchsia-400 drop-shadow-sm dark:drop-shadow-[0_0_12px_rgba(244,63,94,0.4)]">
+                          ${Number(product.salePrice).toLocaleString('es-CL')} <span className="text-xs font-normal text-slate-500 dark:text-slate-400 font-sans">CLP</span>
+                        </span>
+                        <span className="text-sm sm:text-base font-mono line-through text-slate-400">
+                          ${formattedPrice} CLP
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-3xl sm:text-4xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 dark:from-cyan-400 dark:via-teal-300 dark:to-emerald-400 drop-shadow-sm dark:drop-shadow-[0_0_12px_rgba(6,182,212,0.35)]">
+                        ${formattedPrice} <span className="text-xs font-normal text-slate-500 dark:text-slate-400 font-sans">CLP</span>
+                      </span>
+                    )}
                   </div>
 
                   <div className="text-right">

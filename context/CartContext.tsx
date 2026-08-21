@@ -74,7 +74,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setCart([]);
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + Number(item?.price ?? 0), 0);
+  const cartTotal = cart.reduce((sum, item) => {
+    const itemPrice = item?.isOnSale && item?.salePrice != null ? Number(item.salePrice) : Number(item?.price ?? 0);
+    return sum + itemPrice;
+  }, 0);
   const formattedCartTotal = cartTotal.toLocaleString('es-CL');
   const totalItems = cart.length;
 
