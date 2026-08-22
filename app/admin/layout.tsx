@@ -153,14 +153,14 @@ export default function AdminLayout({
                           )}
                         </div>
 
-                        <span className="text-xs font-mono text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm">
+                        <span className="text-xs font-mono text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm h-fit">
                           <span className="text-slate-400">👤</span>
                           <span className="font-bold text-slate-900 dark:text-white">{displayName}</span>
                         </span>
 
                         {userRole && (
                           <span
-                            className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 ${userRole === 'Super_Admin'
+                            className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 h-fit ${userRole === 'Super_Admin'
                                 ? 'bg-fuchsia-100 dark:bg-fuchsia-950/80 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-300 dark:border-fuchsia-700/60 shadow-[0_0_10px_rgba(217,70,239,0.2)]'
                                 : userRole === 'Admin_Tienda'
                                   ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700/60 shadow-[0_0_10px_rgba(168,85,247,0.2)]'
@@ -176,12 +176,12 @@ export default function AdminLayout({
                           <button
                             type="button"
                             onClick={signOut}
-                            className="bg-rose-100 dark:bg-rose-950/80 hover:bg-rose-200 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-white border border-rose-300 dark:border-rose-800/60 px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow hover:shadow-[0_0_12px_rgba(244,63,94,0.25)]"
+                            className="flex items-center gap-2 !px-3 !py-1.5 !text-[11px] sm:!text-xs font-mono font-bold rounded-lg border bg-rose-100 dark:!bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-900/50 hover:bg-rose-200 dark:hover:!bg-rose-900/60 transition-colors !h-fit whitespace-nowrap cursor-pointer"
                           >
-                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                             </svg>
-                            <span>Cerrar Sesión</span>
+                            <span>CERRAR SESIÓN</span>
                           </button>
                         )}
                       </div>

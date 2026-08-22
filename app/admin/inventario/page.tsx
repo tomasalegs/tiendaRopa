@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchAuthSession } from 'aws-amplify/auth';
 import { generateClient } from 'aws-amplify/data';
-import { uploadData } from 'aws-amplify/storage';
+import { uploadData, downloadData } from 'aws-amplify/storage';
 import { StorageImage } from '@aws-amplify/ui-react-storage';
 import imageCompression from 'browser-image-compression';
 import { removeBackground } from '@imgly/background-removal';
@@ -41,6 +41,7 @@ export default function AdminInventarioPage() {
   const [products, setProducts] = useState<Schema['Product']['type'][]>([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
   const [selectedProductForPost, setSelectedProductForPost] = useState<Schema['Product']['type'] | null>(null);
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState<boolean>(false);
 
   // Form states
   const [name, setName] = useState('');
@@ -58,6 +59,11 @@ export default function AdminInventarioPage() {
   const [promoType, setPromoType] = useState<string>('descuento'); // 'descuento' o 'remate'
   const [salePrice, setSalePrice] = useState<number | string>('');
   const [creando, setCreando] = useState(false);
+  const [prendaEnEdicion, setPrendaEnEdicion] = useState<string | null>(null);
+
+  // Filtros
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('TODAS');
+  const [busqueda, setBusqueda] = useState<string>('');
 
   // Guardián de seguridad: Solo 'Super_Admin' y 'Admin_Tienda' pueden acceder
   useEffect(() => {
@@ -89,11 +95,6 @@ export default function AdminInventarioPage() {
       isMounted = false;
     };
   }, [router]);
-  const [prendaEnEdicion, setPrendaEnEdicion] = useState<string | null>(null);
-
-  // Filtros
-  const [filtroCategoria, setFiltroCategoria] = useState<string>('TODAS');
-  const [busqueda, setBusqueda] = useState<string>('');
 
   async function fetchProducts() {
     try {
@@ -111,6 +112,22 @@ export default function AdminInventarioPage() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  const resetForm = () => {
+    setPrendaEnEdicion(null);
+    setName('');
+    setPrice(0);
+    setStock(1);
+    setCategory('Ropa');
+    setGender('Unisex');
+    setSize('');
+    setColor('');
+    setIsOnSale(false);
+    setPromoType('descuento');
+    setSalePrice('');
+    setFiles([]);
+    setExistingImageUrls([]);
+  };
 
   const handleMagicEraser = async () => {
     if (!files || files.length === 0) return;
@@ -206,7 +223,6 @@ export default function AdminInventarioPage() {
           promoType: finalPromoType,
           salePrice: parsedSalePrice,
         });
-        setPrendaEnEdicion(null);
       } else {
         await client.models.Product.create({
           name,
@@ -225,19 +241,8 @@ export default function AdminInventarioPage() {
         });
       }
 
-      // Reset
-      setName('');
-      setPrice(0);
-      setStock(1);
-      setCategory('Ropa');
-      setGender('Unisex');
-      setSize('');
-      setColor('');
-      setIsOnSale(false);
-      setPromoType('descuento');
-      setSalePrice('');
-      setFiles([]);
-      setExistingImageUrls([]);
+      resetForm();
+      setIsSidePanelOpen(false);
       await fetchProducts();
     } catch (error) {
       console.error('Error al guardar el producto:', error);
@@ -267,7 +272,54 @@ export default function AdminInventarioPage() {
 
     setExistingImageUrls(imgs);
     setFiles([]);
+    setIsSidePanelOpen(true);
   }
+
+  const handleRemoveExistingImage = (idxToRemove: number) => {
+    setExistingImageUrls((prev) => prev.filter((_, idx) => idx !== idxToRemove));
+  };
+
+  const handleRemoveBackgroundExisting = async (idx: number, photoPath: string) => {
+    try {
+      setIsProcessingImages(true);
+
+      // 1. Descargar la imagen real de S3 de forma segura (o fetch si es HTTP)
+      let originalBlob: Blob;
+      if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+        const res = await fetch(photoPath);
+        originalBlob = await res.blob();
+      } else {
+        const { body } = await downloadData({ path: photoPath }).result;
+        originalBlob = await body.blob();
+      }
+
+      // 2. Aplicar IA para quitar el fondo
+      const transparentBlob = await removeBackground(originalBlob);
+      const tempFile = new File([transparentBlob], 'temp.png', { type: 'image/png' });
+
+      // 3. Comprimir a WebP
+      const compressionOptions = {
+        maxSizeMB: 0.3,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        fileType: 'image/webp',
+      };
+      const compressedBlob = await imageCompression(tempFile, compressionOptions);
+      const safeName = photoPath.split('/').pop()?.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '_') || 'edited';
+      const newFile = new File([compressedBlob], `y2k-edited-${safeName}-${Date.now()}.webp`, { type: 'image/webp' });
+
+      // 4. Mover la foto a 'Nuevos Archivos' y sacarla de 'Fotos Actuales'
+      setFiles((prev) => [...prev, newFile]);
+      setExistingImageUrls((prev) => prev.filter((_, i) => i !== idx));
+
+      alert('¡Fondo eliminado con IA! La foto transparente se subirá y guardará al presionar Actualizar Producto.');
+    } catch (error) {
+      console.error('Error procesando imagen guardada:', error);
+      alert('Hubo un error al quitar el fondo de la foto guardada.');
+    } finally {
+      setIsProcessingImages(false);
+    }
+  };
 
   async function eliminarPrenda(id: string) {
     if (!id) return;
@@ -300,48 +352,209 @@ export default function AdminInventarioPage() {
   }
 
   return (
-    <div className="w-full p-4 sm:p-8 font-sans text-slate-900 dark:text-slate-100">
-      <div className="mb-8 pb-4 border-b border-slate-200 dark:border-slate-800/80">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] animate-pulse"></span>
-          <span>Gestión de Inventario</span>
-        </h1>
-        <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-1">
-          Agrega, edita, actualiza stock y sube fotos de las prendas del catálogo.
-        </p>
+    <div className="w-full p-4 sm:p-8 font-sans text-slate-900 dark:text-slate-100 relative">
+      {/* Encabezado Principal */}
+      <div className="mb-8 pb-4 border-b border-slate-200 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)] animate-pulse"></span>
+            <span>Gestión de Inventario</span>
+          </h1>
+          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-1">
+            Agrega, edita, actualiza stock y sube fotos de las prendas del catálogo.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            resetForm();
+            setIsSidePanelOpen(true);
+          }}
+          className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-900 font-bold py-2.5 px-6 rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all transform hover:scale-105 whitespace-nowrap cursor-pointer self-start sm:self-auto text-xs font-mono uppercase tracking-wider"
+        >
+          + Agregar Producto
+        </button>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Formulario Crear / Editar */}
-        <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-md dark:shadow-xl lg:col-span-1 h-fit space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-            <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-wide flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400"></span>
-              {prendaEnEdicion ? 'Editar Producto' : 'Agregar al Inventario'}
+      {/* Tabla de Inventario al 100% de Ancho */}
+      <div className="w-full bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-md dark:shadow-xl overflow-x-auto space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+          <div>
+            <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-wide">Inventario Actual</h2>
+            <span className="text-xs font-mono text-slate-500 dark:text-slate-400">Total: {products.length} productos ({productosFiltrados.length} mostrados)</span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar prenda..."
+              className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+            />
+
+            <select
+              value={filtroCategoria}
+              onChange={(e) => setFiltroCategoria(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
+            >
+              <option value="TODAS">Todas las categorías</option>
+              <option value="Ropa">Ropa</option>
+              <option value="Zapatillas">Zapatillas</option>
+              <option value="Carteras">Carteras</option>
+              <option value="Colonias">Colonias</option>
+              <option value="Accesorios">Accesorios</option>
+              <option value="Gorros">Gorros</option>
+              <option value="Cosmética">Cosmética</option>
+            </select>
+          </div>
+        </div>
+
+        {loadingProducts ? (
+          <p className="text-slate-400 text-xs py-8 text-center animate-pulse">Cargando base de datos...</p>
+        ) : productosFiltrados.length === 0 ? (
+          <div className="text-center py-12 text-slate-500 dark:text-slate-400 text-xs">
+            No se encontraron productos coincidentes con los filtros aplicados.
+          </div>
+        ) : (
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
+                <th className="p-3">Foto</th>
+                <th className="p-3">Producto</th>
+                <th className="p-3">Categoría</th>
+                <th className="p-3">Precio</th>
+                <th className="p-3">Stock</th>
+                <th className="p-3">Detalles</th>
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
+              {productosFiltrados.map((p, index) => {
+                const primaryThumb = p?.imageUrls?.[0] || p?.imageUrl;
+                const galleryCount = p?.imageUrls?.length || (p?.imageUrl ? 1 : 0);
+
+                return (
+                  <tr key={p?.id || index} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="p-3">
+                      <div className="relative inline-block">
+                        <ProductImageThumbnail imagePath={primaryThumb} alt={p?.name || 'Producto'} />
+                        {galleryCount > 1 && (
+                          <span className="absolute -bottom-1 -right-1 bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 text-[9px] font-bold px-1 rounded">
+                            +{galleryCount}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3 font-semibold text-slate-900 dark:text-white">
+                      <div className="flex items-center gap-2">
+                        <span>{p?.name || 'Sin nombre'}</span>
+                        {p?.isOnSale && (
+                          <span className={`border text-[9px] font-mono font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse ${
+                            p.promoType === 'remate'
+                              ? 'bg-rose-100 dark:bg-rose-950/90 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-600/70 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
+                              : 'bg-fuchsia-100 dark:bg-fuchsia-950/90 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-300 dark:border-fuchsia-600/70 shadow-[0_0_8px_rgba(217,70,239,0.4)]'
+                          }`}>
+                            {p.promoType === 'remate' ? '🔥 REMATE' : '🏷️ REBAJA'}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className="bg-cyan-50 dark:bg-cyan-950/80 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/40 text-[10px] font-bold px-2 py-0.5 rounded">
+                        {p?.category || 'General'}
+                      </span>
+                    </td>
+                    <td className="p-3 font-mono font-bold">
+                      {p?.isOnSale && p?.salePrice ? (
+                        <div className="flex flex-col">
+                          <span className="text-rose-600 dark:text-rose-400 font-black">${Number(p.salePrice).toLocaleString('es-CL')}</span>
+                          <span className="text-[10px] text-slate-400 line-through">${Number(p?.price ?? 0).toLocaleString('es-CL')}</span>
+                        </div>
+                      ) : (
+                        <span className="text-emerald-600 dark:text-emerald-400">${Number(p?.price ?? 0).toLocaleString('es-CL')}</span>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
+                          (p?.stock ?? 0) <= 0
+                            ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800/50 animate-pulse'
+                            : (p?.stock ?? 0) <= 2
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/50'
+                            : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800/50'
+                        }`}
+                      >
+                        {p?.stock ?? 0}
+                      </span>
+                    </td>
+                    <td className="p-3 text-slate-500 dark:text-slate-400">
+                      {p?.size ? `Talla: ${p.size} ` : ''}
+                      {p?.color ? `• ${p.color} ` : ''}
+                      {p?.gender ? `• ${p.gender}` : ''}
+                      {!p?.size && !p?.color && !p?.gender ? '-' : ''}
+                    </td>
+                    <td className="p-3 text-right space-x-2 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProductForPost(p)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 hover:text-white border border-cyan-700/60 font-mono font-bold text-[11px] shadow-sm hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all cursor-pointer mr-1"
+                        title="Generar post para Instagram / TikTok"
+                      >
+                        <span>📸</span>
+                        <span>Crear Post</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => prepararEdicion(p)}
+                        className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-semibold cursor-pointer"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => p?.id && eliminarPrenda(p.id)}
+                        className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 font-semibold cursor-pointer"
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Overlay oscuro (Fondo del Panel Lateral) */}
+      {isSidePanelOpen && (
+        <div
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-40 transition-opacity cursor-pointer"
+          onClick={() => setIsSidePanelOpen(false)}
+        />
+      )}
+
+      {/* Panel Lateral Derecho (Slide-over) para Agregar / Editar Producto */}
+      <div
+        className={`fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out overflow-y-auto ${
+          isSidePanelOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
+        <div className="p-6 space-y-4">
+          <div className="flex justify-between items-center mb-6 pb-3 border-b border-slate-200 dark:border-slate-800">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-widest">
+              {prendaEnEdicion ? 'EDITAR PRODUCTO' : 'NUEVO PRODUCTO'}
             </h2>
-            {prendaEnEdicion && (
-              <button
-                type="button"
-                onClick={() => {
-                  setPrendaEnEdicion(null);
-                  setName('');
-                  setPrice(0);
-                  setStock(1);
-                  setCategory('Ropa');
-                  setGender('Unisex');
-                  setSize('');
-                  setColor('');
-                  setIsOnSale(false);
-                  setPromoType('descuento');
-                  setSalePrice('');
-                  setFiles([]);
-                  setExistingImageUrls([]);
-                }}
-                className="text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
-              >
-                Cancelar
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setIsSidePanelOpen(false)}
+              className="text-slate-400 hover:text-slate-900 dark:hover:text-white p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              aria-label="Cerrar panel"
+            >
+              ✕
+            </button>
           </div>
 
           <form onSubmit={handleGuardarPrenda} className="space-y-4 text-xs">
@@ -552,13 +765,59 @@ export default function AdminInventarioPage() {
                   {existingImageUrls.length} {existingImageUrls.length === 1 ? 'foto guardada' : 'fotos guardadas'}. Selecciona fotos si deseas agregar más.
                 </p>
               ) : null}
+
+              {/* Galería de Fotos Existentes en Base de Datos / S3 */}
+              {prendaEnEdicion && existingImageUrls.length > 0 && (
+                <div className="mt-4 mb-4">
+                  <h4 className="text-xs text-slate-400 uppercase tracking-widest mb-2 font-mono">
+                    Fotos Actuales en Base de Datos
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {existingImageUrls.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="relative group rounded-xl overflow-hidden bg-slate-800 border border-slate-700 flex items-center justify-center p-2 min-h-[128px]"
+                      >
+                        {url.startsWith('http') || url.startsWith('blob:') ? (
+                          <img src={url} alt={`Foto ${idx + 1}`} className="w-full h-32 object-contain" />
+                        ) : (
+                          <StorageImage path={url} alt={`Foto ${idx + 1}`} className="w-full h-32 object-contain" />
+                        )}
+
+                        {/* Acciones flotantes en la imagen (Quitar fondo + Eliminar) */}
+                        <div className="absolute top-2 left-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveBackgroundExisting(idx, url)}
+                            disabled={isProcessingImages}
+                            className="bg-fuchsia-600/90 hover:bg-fuchsia-500 text-white p-1.5 rounded-lg shadow-lg text-xs font-bold cursor-pointer disabled:opacity-50"
+                            title="Borrador Mágico (Quitar Fondo con IA)"
+                          >
+                            🪄
+                          </button>
+                        </div>
+
+                        {/* Botón para Eliminar Foto */}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveExistingImage(idx)}
+                          className="absolute top-2 right-2 bg-red-500/80 hover:bg-red-500 text-white p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow text-xs"
+                          title="Eliminar esta foto"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div className="pt-2">
+            <div className="pt-2 flex items-center gap-3">
               <button
                 type="submit"
                 disabled={creando || subiendoImagen}
-                className="w-full min-h-[48px] bg-gradient-to-r from-cyan-600 to-fuchsia-600 hover:from-cyan-500 hover:to-fuchsia-500 text-white font-bold p-3 rounded-xl transition-all duration-300 ease-in-out shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer uppercase tracking-wider text-xs"
+                className="flex-1 min-h-[48px] bg-gradient-to-r from-cyan-600 to-fuchsia-600 hover:from-cyan-500 hover:to-fuchsia-500 text-white font-bold p-3 rounded-xl transition-all duration-300 ease-in-out shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer uppercase tracking-wider text-xs"
               >
                 {subiendoImagen
                   ? `Subiendo ${files.length} fotos a Storage...`
@@ -568,159 +827,19 @@ export default function AdminInventarioPage() {
                   ? 'Actualizar Producto'
                   : 'Crear Producto'}
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  resetForm();
+                  setIsSidePanelOpen(false);
+                }}
+                className="px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-mono font-bold transition cursor-pointer"
+              >
+                Cancelar
+              </button>
             </div>
           </form>
-        </div>
-
-        {/* Tabla de Inventario */}
-        <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-md dark:shadow-xl lg:col-span-2 overflow-x-auto space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
-            <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-wide">Inventario Actual</h2>
-              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">Total: {products.length} productos ({productosFiltrados.length} mostrados)</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar prenda..."
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
-              />
-
-              <select
-                value={filtroCategoria}
-                onChange={(e) => setFiltroCategoria(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-cyan-500"
-              >
-                <option value="TODAS">Todas las categorías</option>
-                <option value="Ropa">Ropa</option>
-                <option value="Zapatillas">Zapatillas</option>
-                <option value="Carteras">Carteras</option>
-                <option value="Colonias">Colonias</option>
-                <option value="Accesorios">Accesorios</option>
-                <option value="Gorros">Gorros</option>
-                <option value="Cosmética">Cosmética</option>
-              </select>
-            </div>
-          </div>
-
-          {loadingProducts ? (
-            <p className="text-slate-400 text-xs py-8 text-center animate-pulse">Cargando base de datos...</p>
-          ) : productosFiltrados.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 dark:text-slate-400 text-xs">
-              No se encontraron productos coincidentes con los filtros aplicados.
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono">
-                  <th className="p-3">Foto</th>
-                  <th className="p-3">Producto</th>
-                  <th className="p-3">Categoría</th>
-                  <th className="p-3">Precio</th>
-                  <th className="p-3">Stock</th>
-                  <th className="p-3">Detalles</th>
-                  <th className="p-3 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60">
-                {productosFiltrados.map((p, index) => {
-                  const primaryThumb = p?.imageUrls?.[0] || p?.imageUrl;
-                  const galleryCount = p?.imageUrls?.length || (p?.imageUrl ? 1 : 0);
-
-                  return (
-                    <tr key={p?.id || index} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="p-3">
-                        <div className="relative inline-block">
-                          <ProductImageThumbnail imagePath={primaryThumb} alt={p?.name || 'Producto'} />
-                          {galleryCount > 1 && (
-                            <span className="absolute -bottom-1 -right-1 bg-cyan-100 dark:bg-cyan-950 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800 text-[9px] font-bold px-1 rounded">
-                              +{galleryCount}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3 font-semibold text-slate-900 dark:text-white">
-                        <div className="flex items-center gap-2">
-                          <span>{p?.name || 'Sin nombre'}</span>
-                          {p?.isOnSale && (
-                            <span className={`border text-[9px] font-mono font-black px-1.5 py-0.5 rounded shadow-sm animate-pulse ${
-                              p.promoType === 'remate'
-                                ? 'bg-rose-100 dark:bg-rose-950/90 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-600/70 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
-                                : 'bg-fuchsia-100 dark:bg-fuchsia-950/90 text-fuchsia-700 dark:text-fuchsia-300 border-fuchsia-300 dark:border-fuchsia-600/70 shadow-[0_0_8px_rgba(217,70,239,0.4)]'
-                            }`}>
-                              {p.promoType === 'remate' ? '🔥 REMATE' : '🏷️ REBAJA'}
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3">
-                        <span className="bg-cyan-50 dark:bg-cyan-950/80 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/40 text-[10px] font-bold px-2 py-0.5 rounded">
-                          {p?.category || 'General'}
-                        </span>
-                      </td>
-                      <td className="p-3 font-mono font-bold">
-                        {p?.isOnSale && p?.salePrice ? (
-                          <div className="flex flex-col">
-                            <span className="text-rose-600 dark:text-rose-400 font-black">${Number(p.salePrice).toLocaleString('es-CL')}</span>
-                            <span className="text-[10px] text-slate-400 line-through">${Number(p?.price ?? 0).toLocaleString('es-CL')}</span>
-                          </div>
-                        ) : (
-                          <span className="text-emerald-600 dark:text-emerald-400">${Number(p?.price ?? 0).toLocaleString('es-CL')}</span>
-                        )}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
-                            (p?.stock ?? 0) <= 0
-                              ? 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800/50 animate-pulse'
-                              : (p?.stock ?? 0) <= 2
-                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/50'
-                              : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800/50'
-                          }`}
-                        >
-                          {p?.stock ?? 0}
-                        </span>
-                      </td>
-                      <td className="p-3 text-slate-500 dark:text-slate-400">
-                        {p?.size ? `Talla: ${p.size} ` : ''}
-                        {p?.color ? `• ${p.color} ` : ''}
-                        {p?.gender ? `• ${p.gender}` : ''}
-                        {!p?.size && !p?.color && !p?.gender ? '-' : ''}
-                      </td>
-                      <td className="p-3 text-right space-x-2 whitespace-nowrap">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedProductForPost(p)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 hover:text-white border border-cyan-700/60 font-mono font-bold text-[11px] shadow-sm hover:shadow-[0_0_10px_rgba(6,182,212,0.4)] transition-all cursor-pointer mr-1"
-                          title="Generar post para Instagram / TikTok"
-                        >
-                          <span>📸</span>
-                          <span>Crear Post</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => prepararEdicion(p)}
-                          className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 font-semibold cursor-pointer"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => p?.id && eliminarPrenda(p.id)}
-                          className="text-rose-600 hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-300 font-semibold cursor-pointer"
-                        >
-                          Eliminar
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
         </div>
       </div>
 

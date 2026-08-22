@@ -323,21 +323,22 @@ export default function AdminUsuariosPage() {
         </div>
 
         {/* Barra de Filtros y Búsqueda */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            {/* Filtros por Rol */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1">
-                Filtrar Rol:
-              </span>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900/90 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm mb-6 w-full overflow-hidden">
+          {/* Zona de Filtros (Izquierda) */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full lg:w-auto overflow-hidden">
+            <span className="text-xs font-mono font-bold tracking-widest text-slate-400 dark:text-slate-400 shrink-0">
+              FILTRAR ROL:
+            </span>
 
+            {/* Botones de Filtro con Scroll Horizontal y Tamaño Forzado */}
+            <div className="flex items-center gap-2 overflow-x-auto w-full pb-1 scrollbar-hide">
               <button
                 type="button"
                 onClick={() => setRoleFilter('ALL')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
+                className={`!px-3 !py-1.5 rounded-full !text-[11px] font-bold font-mono whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   roleFilter === 'ALL'
-                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800'
+                    ? '!bg-slate-200 dark:!bg-slate-800 !text-slate-900 dark:!text-white border border-slate-300 dark:border-slate-600 shadow-sm'
+                    : 'bg-transparent border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
               >
                 Todos ({users.length})
@@ -346,10 +347,10 @@ export default function AdminUsuariosPage() {
               <button
                 type="button"
                 onClick={() => setRoleFilter('Super_Admin')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
+                className={`!px-3 !py-1.5 rounded-full !text-[11px] font-bold font-mono whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   roleFilter === 'Super_Admin'
-                    ? 'bg-fuchsia-100 dark:bg-fuchsia-950/80 text-fuchsia-800 dark:text-fuchsia-300 border border-fuchsia-300 dark:border-fuchsia-700 shadow-sm'
-                    : 'text-fuchsia-600 dark:text-fuchsia-400 hover:text-fuchsia-800 dark:hover:text-fuchsia-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800'
+                    ? '!bg-fuchsia-100 dark:!bg-fuchsia-950/80 !text-fuchsia-800 dark:!text-fuchsia-300 border border-fuchsia-300 dark:border-fuchsia-700 shadow-sm'
+                    : 'bg-transparent border border-slate-200 dark:border-slate-800 text-fuchsia-600 dark:text-fuchsia-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
               >
                 Super Admin ({superAdminCount})
@@ -358,10 +359,10 @@ export default function AdminUsuariosPage() {
               <button
                 type="button"
                 onClick={() => setRoleFilter('Admin_Tienda')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
+                className={`!px-3 !py-1.5 rounded-full !text-[11px] font-bold font-mono whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   roleFilter === 'Admin_Tienda'
-                    ? 'bg-purple-100 dark:bg-purple-950/80 text-purple-800 dark:text-purple-300 border border-purple-300 dark:border-purple-700 shadow-sm'
-                    : 'text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800'
+                    ? '!bg-purple-100 dark:!bg-purple-950/80 !text-purple-800 dark:!text-purple-300 border border-purple-300 dark:border-purple-700 shadow-sm'
+                    : 'bg-transparent border border-slate-200 dark:border-slate-800 text-purple-600 dark:text-purple-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
               >
                 Admin Tienda ({adminTiendaCount})
@@ -370,10 +371,10 @@ export default function AdminUsuariosPage() {
               <button
                 type="button"
                 onClick={() => setRoleFilter('Logistica_Operadores')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
+                className={`!px-3 !py-1.5 rounded-full !text-[11px] font-bold font-mono whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   roleFilter === 'Logistica_Operadores'
-                    ? 'bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700 shadow-sm'
-                    : 'text-cyan-600 dark:text-cyan-400 hover:text-cyan-800 dark:hover:text-cyan-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800'
+                    ? '!bg-cyan-100 dark:!bg-cyan-950/80 !text-cyan-800 dark:!text-cyan-300 border border-cyan-300 dark:border-cyan-700 shadow-sm'
+                    : 'bg-transparent border border-slate-200 dark:border-slate-800 text-cyan-600 dark:text-cyan-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
               >
                 Logística ({logisticaCount})
@@ -382,35 +383,35 @@ export default function AdminUsuariosPage() {
               <button
                 type="button"
                 onClick={() => setRoleFilter('Cliente')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
+                className={`!px-3 !py-1.5 rounded-full !text-[11px] font-bold font-mono whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   roleFilter === 'Cliente'
-                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800'
+                    ? '!bg-slate-200 dark:!bg-slate-800 !text-slate-900 dark:!text-white border border-slate-300 dark:border-slate-600 shadow-sm'
+                    : 'bg-transparent border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'
                 }`}
               >
                 Clientes ({clientesCount})
               </button>
             </div>
+          </div>
 
-            {/* Input de Búsqueda */}
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar por correo o nombre..."
-                className="w-full sm:w-72 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono transition"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-white"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+          {/* Zona de Búsqueda (Derecha) */}
+          <div className="w-full lg:w-72 shrink-0 relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por correo o nombre..."
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 

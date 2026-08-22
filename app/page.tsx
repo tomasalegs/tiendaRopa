@@ -720,47 +720,7 @@ function HomeContent() {
             );
           })()}
 
-          {/* Quick Filters de Categorías */}
-          <div className="flex flex-wrap items-center justify-center gap-2 pt-3">
-            <button
-              onClick={() => {
-                setSelectedCategory('Todas');
-                setSelectedGender('Todos');
-                setActivePromo(null);
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all duration-300 cursor-pointer ${
-                selectedCategory === 'Todas' && selectedGender === 'Todos' && !activePromo
-                  ? 'bg-cyan-500 text-black font-bold shadow-[0_0_15px_rgba(6,182,212,0.5)]'
-                  : 'bg-white dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
-              }`}
-            >
-              Todos ({products.length})
-            </button>
-            {categories.slice(0, 5).map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-mono transition-all duration-300 cursor-pointer ${
-                  selectedCategory === cat && !activePromo
-                    ? 'bg-cyan-500 text-black font-bold shadow-[0_0_15px_rgba(6,182,212,0.5)]'
-                    : 'bg-white dark:bg-slate-900/90 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
 
-            {/* Burbuja / Badge de Filtro Activo (UX) */}
-            {activePromo && (
-              <button
-                type="button"
-                onClick={() => setActivePromo(null)}
-                className="ml-2 bg-fuchsia-600/20 text-fuchsia-400 border border-fuchsia-500/50 rounded-full px-4 py-1 text-sm flex items-center gap-2 hover:bg-fuchsia-600/40 shadow-[0_0_12px_rgba(217,70,239,0.3)] transition-all animate-fadeIn cursor-pointer"
-              >
-                🔥 {activePromo === 'remate' ? 'Remates Activos' : 'Descuentos Activos'} <span className="text-xs">✕</span>
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Controles de Navegación del Carrusel (Flechas y Dots) */}
@@ -921,9 +881,9 @@ function HomeContent() {
                         </span>
                       )}
                       {product.size && (
-                        <span className="px-2 py-0.5 rounded bg-white/90 dark:bg-slate-950/80 backdrop-blur-md text-[10px] font-mono font-bold text-cyan-700 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 shadow-sm">
-                          TALLA: {product.size}
-                        </span>
+                        <div className="bg-slate-900/80 backdrop-blur text-cyan-400 border border-cyan-500/30 px-3 py-1 text-[10px] font-mono tracking-widest uppercase rounded-bl-xl shadow-[0_0_10px_rgba(6,182,212,0.2)]">
+                          {product.category?.toLowerCase() === 'colonias' ? product.size : `TALLA: ${product.size}`}
+                        </div>
                       )}
                       {product.stock <= 2 && product.stock > 0 && (
                         <span className="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950/90 text-[9px] font-mono font-bold text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-600/50 animate-pulse">
@@ -934,61 +894,20 @@ function HomeContent() {
                   </Link>
 
                   {/* Cuerpo de la tarjeta */}
-                  <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 mb-1">
-                        <span>{product.gender || 'Unisex'}</span>
-                        <span>{product.category}</span>
+                  <div className="p-4 flex flex-col justify-between">
+                    <div className="flex justify-between items-start mb-2 gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mb-1">{product.category}</p>
+                        <Link href={`/producto/${product.id}`} className="block group-hover:text-cyan-500 transition-colors">
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-tight line-clamp-2">{product.name}</h3>
+                        </Link>
                       </div>
-
-                      <Link href={`/producto/${product.id}`} className="block group-hover:text-cyan-600 dark:group-hover:text-cyan-300 transition-colors">
-                        <h3 className="font-bold text-slate-900 dark:text-white text-sm line-clamp-1">
-                          {product.name}
-                        </h3>
-                      </Link>
-
-                      {product.brand && (
-                        <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400">{product.brand}</p>
-                      )}
-                    </div>
-
-                    {/* Botón de Ancho Completo Agregar al Carrito */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                      <button
-                        type="button"
-                        onClick={() => handleAddToCart(product)}
-                        disabled={product.stock <= 0}
-                        className={`w-full mt-2 py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 text-xs font-mono font-bold uppercase tracking-wider transition-all duration-300 ${
-                          isJustAdded
-                            ? 'bg-emerald-500 text-black scale-[1.02] shadow-[0_0_15px_rgba(16,185,129,0.5)]'
-                            : product.stock <= 0
-                            ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed border border-slate-300 dark:border-slate-700 opacity-60'
-                            : 'bg-gradient-to-r from-cyan-500 via-sky-500 to-fuchsia-600 hover:from-cyan-400 hover:to-fuchsia-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:scale-[1.02] active:scale-[0.98] cursor-pointer'
-                        }`}
-                      >
-                        {isJustAdded ? (
-                          <>
-                            <span className="font-black text-sm">✓</span>
-                            <span>¡AGREGADO AL CARRITO!</span>
-                          </>
-                        ) : product.stock <= 0 ? (
-                          <span>AGOTADO</span>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth="2"
-                                d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                              />
-                            </svg>
-                            <span className="truncate">
-                              AGREGAR AL CARRITO • ${Number(product.isOnSale && product.salePrice ? product.salePrice : product.price).toLocaleString('es-CL')}
-                            </span>
-                          </>
-                        )}
-                      </button>
+                      {/* Precio con formato Y2K */}
+                      <div className="text-right flex-shrink-0">
+                        <span className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-fuchsia-500 font-mono">
+                          ${(product.isOnSale && product.salePrice ? product.salePrice : product.price)?.toLocaleString('es-CL')}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

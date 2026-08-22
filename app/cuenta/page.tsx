@@ -500,13 +500,13 @@ function ClientVault({ user, signOut }: { user?: any; signOut?: () => void }) {
           </div>
 
           <div className="space-y-1.5">
-            <div className="flex items-center gap-3">
-              <span className="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse" />
-              <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
-                Mi Bóveda <span className="text-cyan-500 dark:text-cyan-400 font-mono text-xl sm:text-2xl font-normal">//</span> Historial de Pedidos
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.9)] animate-pulse flex-shrink-0" />
+              <h1 className="!text-xl md:!text-2xl !font-extrabold !leading-tight !whitespace-nowrap text-slate-900 dark:text-white">
+                Mi Bóveda <span className="text-cyan-500 dark:text-cyan-400 font-mono text-lg md:text-xl font-normal">//</span> Historial de Pedidos
               </h1>
             </div>
-            <p className="text-xs sm:text-sm font-mono text-slate-600 dark:text-slate-400">
+            <p className="!text-xs text-slate-600 dark:text-slate-400 font-mono">
               ¡Hola, <span className="font-bold text-cyan-600 dark:text-cyan-300">{userName || 'Cliente'}</span>! Bienvenido a tu terminal de compras y seguimiento en vivo.
             </p>
             <div className="flex items-center gap-2 pt-1">
@@ -523,26 +523,25 @@ function ClientVault({ user, signOut }: { user?: any; signOut?: () => void }) {
         </div>
 
         {/* ACCIONES DEL HEADER */}
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Theme Toggle */}
+        <div className="flex flex-row items-center gap-2 lg:gap-3 flex-wrap lg:flex-nowrap justify-end w-full lg:w-auto">
           <ThemeToggle />
 
           {isAdmin && (
             <Link
               href="/admin"
-              className="px-4 py-2.5 rounded-xl bg-fuchsia-100 dark:bg-fuchsia-950/80 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 hover:text-fuchsia-900 dark:hover:text-white border border-fuchsia-300 dark:border-fuchsia-700/80 text-xs font-mono font-bold transition-all shadow-sm dark:shadow-[0_0_15px_rgba(217,70,239,0.25)] flex items-center gap-1.5"
+              className="!px-3 !py-1.5 !text-xs font-bold rounded-lg whitespace-nowrap h-fit flex items-center justify-center gap-1.5 bg-fuchsia-100 dark:bg-fuchsia-950/80 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 hover:text-fuchsia-900 dark:hover:text-white border border-fuchsia-300 dark:border-fuchsia-700/80 font-mono transition-all shadow-sm cursor-pointer"
               title="Ir al Centro de Control de Administración"
             >
-              <span>👑</span>
+              <span className="text-xs">👑</span>
               <span>Panel Admin</span>
             </Link>
           )}
 
           <Link
             href="/"
-            className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-cyan-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-cyan-500/40 text-xs font-mono font-bold transition-all shadow-sm flex items-center gap-2"
+            className="!px-3 !py-1.5 !text-xs font-semibold rounded-lg whitespace-nowrap h-fit flex items-center justify-center gap-1.5 bg-slate-100 dark:bg-slate-950 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-cyan-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-cyan-500/40 font-mono transition-all shadow-sm cursor-pointer"
           >
-            <span>←</span>
+            <span className="text-xs">←</span>
             <span>Volver a la Vitrina</span>
           </Link>
 
@@ -550,9 +549,9 @@ function ClientVault({ user, signOut }: { user?: any; signOut?: () => void }) {
             <button
               type="button"
               onClick={signOut}
-              className="px-4 py-2.5 rounded-xl bg-rose-100 dark:bg-rose-950/80 hover:bg-rose-200 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-white border border-rose-300 dark:border-rose-800/80 text-xs font-mono font-bold transition-all cursor-pointer shadow hover:shadow-[0_0_15px_rgba(244,63,94,0.3)] flex items-center gap-1.5"
+              className="!px-3 !py-1.5 !text-xs font-semibold rounded-lg whitespace-nowrap h-fit flex items-center justify-center gap-1.5 bg-rose-100 dark:bg-rose-950/80 hover:bg-rose-200 dark:hover:bg-rose-900 text-rose-700 dark:text-rose-300 hover:text-rose-900 dark:hover:text-white border border-rose-300 dark:border-rose-800/80 font-mono transition-all cursor-pointer shadow-sm"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
               <span>Cerrar Sesión</span>

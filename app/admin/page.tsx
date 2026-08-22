@@ -167,7 +167,7 @@ export default function AdminDashboardPage() {
           <span>Dashboard Analítico</span>
         </h1>
         <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-1">
-          Métricas globales del sistema, alertas en tiempo real y accesos rápidos.
+          Métricas globales del sistema y alertas en tiempo real.
         </p>
       </div>
 
@@ -269,65 +269,6 @@ export default function AdminDashboardPage() {
               </p>
             </div>
           </div>
-        </div>
-
-        {/* Sección de Accesos Rápidos del Centro de Control */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link
-            href="/admin/inventario"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all group flex items-center justify-between shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl p-2.5 rounded-xl bg-cyan-100 dark:bg-cyan-950/60 border border-cyan-300 dark:border-cyan-800/50">📦</span>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">Gestión de Inventario</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Agregar o editar prendas</p>
-              </div>
-            </div>
-            <span className="text-slate-400 dark:text-slate-500 group-hover:text-cyan-600 dark:group-hover:text-cyan-400 transition-colors">→</span>
-          </Link>
-
-          <Link
-            href="/admin/pedidos"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-fuchsia-500/50 transition-all group flex items-center justify-between shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl p-2.5 rounded-xl bg-fuchsia-100 dark:bg-fuchsia-950/60 border border-fuchsia-300 dark:border-fuchsia-800/50">📋</span>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400 transition-colors">Control de Pedidos</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Validar transferencias</p>
-              </div>
-            </div>
-            <span className="text-slate-400 dark:text-slate-500 group-hover:text-fuchsia-600 dark:group-hover:text-fuchsia-400 transition-colors">→</span>
-          </Link>
-
-          <Link
-            href="/admin/usuarios"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-purple-500/50 transition-all group flex items-center justify-between shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl p-2.5 rounded-xl bg-purple-100 dark:bg-purple-950/60 border border-purple-300 dark:border-purple-800/50">👥</span>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">Usuarios & Roles</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Privilegios y grupos RBAC</p>
-              </div>
-            </div>
-            <span className="text-slate-400 dark:text-slate-500 group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">→</span>
-          </Link>
-
-          <Link
-            href="/admin/escaner"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 transition-all group flex items-center justify-between shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800/50">📟</span>
-              <div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Escáner Logístico</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">Entrega con PIN / ID</p>
-              </div>
-            </div>
-            <span className="text-slate-400 dark:text-slate-500 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">→</span>
-          </Link>
         </div>
 
         {/* Dos Paneles: Pedidos Pendientes y Stock Crítico */}
