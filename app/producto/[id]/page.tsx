@@ -317,14 +317,23 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
 
                   {/* Renderizado de StorageImage Principal con object-contain p-4 y transición suave */}
                   {activeImage ? (
-                    <StorageImage
-                      key={activeImage}
-                      path={activeImage}
-                      alt={product.name || 'Foto del producto'}
-                      loading="eager"
-                      className="w-full h-full object-contain p-4 mix-blend-normal rounded-2xl transition-opacity duration-300 z-0"
-                      fallbackSrc="/favicon.ico"
-                    />
+                    activeImage.startsWith('http://') || activeImage.startsWith('https://') || activeImage.startsWith('data:') ? (
+                      <img
+                        src={activeImage}
+                        alt={product.name || 'Foto del producto'}
+                        loading="eager"
+                        className="w-full h-full object-contain p-4 mix-blend-normal rounded-2xl transition-opacity duration-300 z-0"
+                      />
+                    ) : (
+                      <StorageImage
+                        key={activeImage}
+                        path={activeImage}
+                        alt={product.name || 'Foto del producto'}
+                        loading="eager"
+                        className="w-full h-full object-contain p-4 mix-blend-normal rounded-2xl transition-opacity duration-300 z-0"
+                        fallbackSrc="/favicon.ico"
+                      />
+                    )
                   ) : (
                     <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-gray-500 bg-gray-900 rounded-2xl">
                       <svg className="w-20 h-20 mb-3 opacity-30 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -375,13 +384,22 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
                           }`}
                           aria-label={`Ver foto ${idx + 1}`}
                         >
-                          <StorageImage
-                            path={imgPath}
-                            alt={`${product.name || 'Producto'} miniatura ${idx + 1}`}
-                            loading="lazy"
-                            className="w-full h-full object-contain p-1 mix-blend-normal"
-                            fallbackSrc="/favicon.ico"
-                          />
+                          {imgPath.startsWith('http://') || imgPath.startsWith('https://') || imgPath.startsWith('data:') ? (
+                            <img
+                              src={imgPath}
+                              alt={`${product.name || 'Producto'} miniatura ${idx + 1}`}
+                              loading="lazy"
+                              className="w-full h-full object-contain p-1 mix-blend-normal"
+                            />
+                          ) : (
+                            <StorageImage
+                              path={imgPath}
+                              alt={`${product.name || 'Producto'} miniatura ${idx + 1}`}
+                              loading="lazy"
+                              className="w-full h-full object-contain p-1 mix-blend-normal"
+                              fallbackSrc="/favicon.ico"
+                            />
+                          )}
                         </button>
                       );
                     })}

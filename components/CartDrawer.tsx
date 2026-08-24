@@ -31,6 +31,19 @@ function CartItemImage({ imagePath, alt }: { imagePath?: string | null; alt: str
     );
   }
 
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://') || imagePath.startsWith('data:')) {
+    return (
+      <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-900 border border-slate-800 flex-shrink-0 flex items-center justify-center">
+        <img
+          src={imagePath}
+          alt={alt}
+          loading="lazy"
+          className="w-full h-full object-cover"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-900 border border-slate-800 flex-shrink-0 flex items-center justify-center">
       <StorageImage
