@@ -174,7 +174,9 @@ export default function AdminSidebar({
                     showText ? 'gap-3 px-3.5 py-3' : 'justify-center p-3'
                   } min-h-[44px] rounded-xl transition-all duration-300 ease-in-out cursor-pointer text-xs sm:text-sm border-l-2 ${
                     active
-                      ? 'bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-300 border-cyan-500 dark:border-cyan-400 font-bold shadow-sm dark:shadow-[inset_0_0_15px_rgba(6,182,212,0.2)]'
+                      ? showText
+                        ? 'bg-cyan-50 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-300 border-cyan-500 dark:border-cyan-400 font-bold shadow-sm dark:shadow-[inset_0_0_15px_rgba(6,182,212,0.2)]'
+                        : 'text-cyan-500 dark:text-cyan-400 border-cyan-500 dark:border-cyan-400 font-bold bg-transparent'
                       : 'text-slate-600 dark:text-gray-400 border-transparent hover:text-cyan-600 dark:hover:text-cyan-400 hover:bg-slate-100 dark:hover:bg-cyan-900/20 hover:border-cyan-500/60'
                   }`}
                 >

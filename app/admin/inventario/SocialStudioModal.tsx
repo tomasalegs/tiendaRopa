@@ -241,21 +241,21 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto animate-fadeIn">
       {/* Contenedor Principal del Modal */}
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-6xl rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden flex flex-col max-h-[94vh]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-full max-w-6xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[94vh] transition-colors">
         {/* Header del Modal */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60 flex-shrink-0">
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/60 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center text-white text-lg shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center text-white text-lg shadow-sm">
               📸
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white tracking-wide flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white tracking-wide flex items-center gap-2">
                 <span>Social Studio</span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 border border-cyan-800 uppercase tracking-widest">
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-800 uppercase tracking-widest">
                   1080 x 1080 Square Post
                 </span>
               </h2>
-              <p className="text-xs text-slate-400 font-mono">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                 Genera piezas gráficas HD de marketing listas para Instagram, TikTok y WhatsApp Stories.
               </p>
             </div>
@@ -264,7 +264,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
+            className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors cursor-pointer text-sm font-bold"
             aria-label="Cerrar modal"
           >
             ✕
@@ -277,25 +277,25 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
           <div className="lg:col-span-5 space-y-5 flex flex-col justify-between">
             <div className="space-y-4">
               {/* Información del producto seleccionado */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-1.5">
-                <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider block font-bold">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 space-y-1.5">
+                <span className="text-[10px] font-mono text-cyan-600 dark:text-cyan-400 uppercase tracking-wider block font-bold">
                   Prenda Seleccionada
                 </span>
-                <h3 className="text-sm font-bold text-white leading-snug">{product.name}</h3>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">{product.name}</h3>
                 <div className="flex flex-wrap items-center gap-2 text-xs pt-1">
-                  <span className="font-mono font-black text-emerald-400 text-sm">
+                  <span className="font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm">
                     ${Number(product.price ?? 0).toLocaleString('es-CL')}
                   </span>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-mono">
+                  <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-mono">
                     {product.category || 'Ropa'}
                   </span>
                   {product.gender && (
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-mono">
+                    <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-mono">
                       {product.gender}
                     </span>
                   )}
                   {product.size && (
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px] font-mono">
+                    <span className="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-mono">
                       Talla: {product.size}
                     </span>
                   )}
@@ -305,7 +305,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
               {/* Selector de Foto si hay múltiples en Galería */}
               {availableImages.length > 1 && (
                 <div className="space-y-2">
-                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-300">
+                  <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Seleccionar Foto de la Galería ({availableImages.length} disponibles)
                   </label>
                   <div className="flex gap-2 overflow-x-auto pb-1">
@@ -317,7 +317,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                         className={`px-3 py-1.5 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                           selectedImageIndex === idx
                             ? 'bg-cyan-500 text-black shadow-[0_0_12px_rgba(6,182,212,0.6)] font-black'
-                            : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-slate-700'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         <span>Foto #{idx + 1}</span>
@@ -330,7 +330,7 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
 
               {/* Selector de Estilo de Fondo / Gradiente Y2K */}
               <div className="space-y-2">
-                <label className="block text-xs font-mono uppercase tracking-wider text-slate-300">
+                <label className="block text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300">
                   Estilo de Fondo Y2K
                 </label>
                 <div className="grid grid-cols-2 gap-2 text-xs">
@@ -339,8 +339,8 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                     onClick={() => setTheme('cyber-purple')}
                     className={`p-2.5 rounded-xl border text-left font-mono font-bold transition-all cursor-pointer flex items-center gap-2 ${
                       theme === 'cyber-purple'
-                        ? 'bg-purple-950/80 border-fuchsia-500 text-fuchsia-300 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-purple-100 dark:bg-purple-950/80 border-fuchsia-500 text-fuchsia-800 dark:text-fuchsia-300 shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <span className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-purple-500 to-fuchsia-600 flex-shrink-0" />
@@ -352,8 +352,8 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                     onClick={() => setTheme('matrix-cyan')}
                     className={`p-2.5 rounded-xl border text-left font-mono font-bold transition-all cursor-pointer flex items-center gap-2 ${
                       theme === 'matrix-cyan'
-                        ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-cyan-100 dark:bg-cyan-950/80 border-cyan-400 text-cyan-800 dark:text-cyan-300 shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <span className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-cyan-400 to-emerald-500 flex-shrink-0" />
@@ -365,8 +365,8 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                     onClick={() => setTheme('acid-pink')}
                     className={`p-2.5 rounded-xl border text-left font-mono font-bold transition-all cursor-pointer flex items-center gap-2 ${
                       theme === 'acid-pink'
-                        ? 'bg-rose-950/80 border-rose-500 text-rose-300 shadow-[0_0_10px_rgba(244,63,94,0.3)]'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-rose-100 dark:bg-rose-950/80 border-rose-500 text-rose-800 dark:text-rose-300 shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <span className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-rose-500 to-fuchsia-500 flex-shrink-0" />
@@ -378,8 +378,8 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                     onClick={() => setTheme('deep-carbon')}
                     className={`p-2.5 rounded-xl border text-left font-mono font-bold transition-all cursor-pointer flex items-center gap-2 ${
                       theme === 'deep-carbon'
-                        ? 'bg-slate-900 border-slate-500 text-white shadow-[0_0_10px_rgba(255,255,255,0.15)]'
-                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-slate-200 dark:bg-slate-900 border-slate-400 dark:border-slate-500 text-slate-900 dark:text-white shadow-sm'
+                        : 'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
                   >
                     <span className="w-3.5 h-3.5 rounded-full bg-gradient-to-br from-slate-600 to-slate-900 flex-shrink-0" />
@@ -391,15 +391,15 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
               {/* Control de Etiqueta / Badge Promocional */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-mono uppercase tracking-wider text-slate-300">
+                  <label className="text-xs font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300">
                     Etiqueta / Badge Rotado
                   </label>
-                  <label className="inline-flex items-center cursor-pointer gap-1.5 text-xs text-slate-400">
+                  <label className="inline-flex items-center cursor-pointer gap-1.5 text-xs text-slate-600 dark:text-slate-400">
                     <input
                       type="checkbox"
                       checked={showBadge}
                       onChange={(e) => setShowBadge(e.target.checked)}
-                      className="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0"
+                      className="rounded bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-cyan-500 focus:ring-0"
                     />
                     <span>Mostrar Badge</span>
                   </label>
@@ -412,19 +412,19 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                       value={customBadge}
                       onChange={(e) => setCustomBadge(e.target.value)}
                       placeholder="Ej. 🔥 REMATE, -30% OFF"
-                      className="w-[180px] bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono font-bold"
+                      className="w-[180px] bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 font-mono font-bold"
                     />
                     <button
                       type="button"
                       onClick={() => setCustomBadge('🔥 REMATE')}
-                      className="px-2.5 py-1.5 rounded-lg bg-rose-950 border border-rose-700 text-rose-300 text-[11px] font-mono font-bold hover:bg-rose-900 cursor-pointer transition-colors whitespace-nowrap"
+                      className="px-2.5 py-1.5 rounded-lg bg-rose-100 dark:bg-rose-950 border border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-300 text-[11px] font-mono font-bold hover:bg-rose-200 dark:hover:bg-rose-900 cursor-pointer transition-colors whitespace-nowrap"
                     >
                       Remate
                     </button>
                     <button
                       type="button"
                       onClick={() => setCustomBadge('⚡ NUEVO DROP')}
-                      className="px-2.5 py-1.5 rounded-lg bg-cyan-950 border border-cyan-700 text-cyan-300 text-[11px] font-mono font-bold hover:bg-cyan-900 cursor-pointer transition-colors whitespace-nowrap"
+                      className="px-2.5 py-1.5 rounded-lg bg-cyan-100 dark:bg-cyan-950 border border-cyan-300 dark:border-cyan-700 text-cyan-800 dark:text-cyan-300 text-[11px] font-mono font-bold hover:bg-cyan-200 dark:hover:bg-cyan-900 cursor-pointer transition-colors whitespace-nowrap"
                     >
                       Drop
                     </button>
@@ -434,8 +434,8 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
                       onClick={() => setCustomBadge(`-${discountPercentage}% OFF`)}
                       className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-mono font-bold transition-all whitespace-nowrap ${
                         discountPercentage > 0
-                          ? 'bg-fuchsia-950/80 border-fuchsia-600 text-fuchsia-300 hover:bg-fuchsia-900 cursor-pointer shadow-[0_0_10px_rgba(217,70,239,0.3)]'
-                          : 'bg-slate-900 border-slate-800 text-slate-500 opacity-50 cursor-not-allowed'
+                          ? 'bg-fuchsia-100 dark:bg-fuchsia-950/80 border-fuchsia-300 dark:border-fuchsia-600 text-fuchsia-800 dark:text-fuchsia-300 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900 cursor-pointer shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 opacity-50 cursor-not-allowed'
                       }`}
                       title={discountPercentage > 0 ? `Aplicar badge de ${discountPercentage}% descuento` : 'Sin descuento configurado'}
                     >
@@ -446,23 +446,23 @@ export default function SocialStudioModal({ product, isOpen, onClose }: SocialSt
               </div>
 
               {/* Toggles extras */}
-              <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 space-y-2 text-xs">
-                <label className="flex items-center justify-between cursor-pointer text-slate-300">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                <label className="flex items-center justify-between cursor-pointer text-slate-700 dark:text-slate-300">
                   <span>Mostrar Talla / Color / Género</span>
                   <input
                     type="checkbox"
                     checked={showStockInfo}
                     onChange={(e) => setShowStockInfo(e.target.checked)}
-                    className="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0"
+                    className="rounded bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-cyan-500 focus:ring-0"
                   />
                 </label>
-                <label className="flex items-center justify-between cursor-pointer text-slate-300">
+                <label className="flex items-center justify-between cursor-pointer text-slate-700 dark:text-slate-300">
                   <span>Barra Inferior (Envíos a todo Chile // Link en Bio)</span>
                   <input
                     type="checkbox"
                     checked={showStoreFooter}
                     onChange={(e) => setShowStoreFooter(e.target.checked)}
-                    className="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0"
+                    className="rounded bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-cyan-500 focus:ring-0"
                   />
                 </label>
               </div>

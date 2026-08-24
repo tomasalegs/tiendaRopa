@@ -7,6 +7,7 @@ import ConfigureAmplifyClientSide from '@/app/ConfigureAmplify';
 import { CartProvider } from '@/context/CartContext';
 import CartDrawer from '@/components/CartDrawer';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import Footer from '@/components/Footer';
 
 Amplify.configure(outputs, { ssr: true });
 
@@ -42,6 +43,7 @@ export default function RootLayout({
           <CartProvider>
             <CartDrawer />
             {children}
+            <Footer />
           </CartProvider>
         </ThemeProvider>
       </body>

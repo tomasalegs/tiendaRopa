@@ -211,45 +211,42 @@ export default function CheckoutPage() {
         throw new Error('No se pudo generar la orden en el servidor.');
       }
 
-      // 3. Descuento Automático de Stock en Base de Datos (Product.update)
-      const requestedQtyMap: Record<string, number> = {};
-      for (const item of effectiveCart) {
-        if (item?.id && item.id !== 'item-demo-y2k') {
-          requestedQtyMap[item.id] = (requestedQtyMap[item.id] || 0) + 1;
+      // 3. NUEVO PASO: Descontar Stock en Base de Datos (Product.update) inmediatamente después de crear la Orden
+      if (newOrder) {
+        const requestedQtyMap: Record<string, number> = {};
+        for (const item of effectiveCart) {
+          if (item?.id && item.id !== 'item-demo-y2k') {
+            requestedQtyMap[item.id] = (requestedQtyMap[item.id] || 0) + 1;
+          }
         }
-      }
 
-      const uniqueIds = Object.keys(requestedQtyMap);
-      if (uniqueIds.length > 0) {
-        await Promise.all(
-          uniqueIds.map(async (productId) => {
-            try {
-              const { data: currentProduct } = await client.models.Product.get(
-                { id: productId },
+        const uniqueIds = Object.keys(requestedQtyMap);
+        for (const productId of uniqueIds) {
+          try {
+            // Obtener el producto actual para conocer su stock real en base de datos
+            const { data: currentProduct } = await client.models.Product.get(
+              { id: productId },
+              { authMode }
+            );
+
+            if (currentProduct && typeof currentProduct.stock === 'number') {
+              const qtyToDeduct = requestedQtyMap[productId];
+              const nuevoStock = Math.max(0, currentProduct.stock - qtyToDeduct);
+              const nuevoIsAvailable = nuevoStock > 0;
+
+              await client.models.Product.update(
+                {
+                  id: productId,
+                  stock: nuevoStock,
+                  isAvailable: nuevoIsAvailable,
+                },
                 { authMode }
               );
-
-              if (currentProduct && typeof currentProduct.stock === 'number') {
-                const qtyToDeduct = requestedQtyMap[productId];
-                const newStock = Math.max(0, currentProduct.stock - qtyToDeduct);
-                const newIsAvailable = newStock > 0;
-
-                await client.models.Product.update(
-                  {
-                    id: productId,
-                    stock: newStock,
-                    isAvailable: newIsAvailable,
-                  },
-                  {
-                    authMode,
-                  }
-                );
-              }
-            } catch (stockErr) {
-              console.error(`Error al descontar stock para producto ${productId}:`, stockErr);
             }
-          })
-        );
+          } catch (stockErr) {
+            console.error(`Error descontando stock para el producto ${productId}`, stockErr);
+          }
+        }
       }
 
       // 4. Limpiar carrito de compras si existía

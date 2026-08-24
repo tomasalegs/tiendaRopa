@@ -279,115 +279,113 @@ export default function AdminPedidosPage() {
 
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Barra de Filtros y Búsqueda */}
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            {/* Filtros por Estado Logístico */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1">Logística:</span>
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm mb-6">
+          {/* Contenedor de Botones de Filtro (con scroll x) */}
+          <div className="flex items-center gap-2 overflow-x-auto w-full lg:w-auto pb-1 scrollbar-hide">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 mr-1 shrink-0">Logística:</span>
 
-              <button
-                onClick={() => setLogisticsFilter('ALL')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
-                  logisticsFilter === 'ALL'
-                    ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 shadow'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800'
-                }`}
-              >
-                Todos ({orders.length})
-              </button>
+            <button
+              onClick={() => setLogisticsFilter('ALL')}
+              className={
+                logisticsFilter === 'ALL'
+                  ? '!px-3 !py-1.5 rounded-full !text-[11px] font-bold whitespace-nowrap !bg-slate-200 dark:!bg-slate-800 !text-slate-800 dark:!text-slate-100 shrink-0 cursor-pointer'
+                  : '!px-3 !py-1.5 rounded-full !text-[11px] font-medium whitespace-nowrap bg-transparent border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 shrink-0 cursor-pointer'
+              }
+            >
+              Todos ({orders.length})
+            </button>
 
-              <button
-                onClick={() => setLogisticsFilter('PREPARANDO')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
-                  logisticsFilter === 'PREPARANDO'
-                    ? 'bg-amber-950 text-amber-300 border border-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-                    : 'text-amber-400/80 hover:text-amber-300 bg-slate-950 border border-slate-800'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-                Preparando ({preparandoCount})
-              </button>
+            <button
+              onClick={() => setLogisticsFilter('PREPARANDO')}
+              className={
+                logisticsFilter === 'PREPARANDO'
+                  ? '!px-3 !py-1.5 rounded-full !text-[11px] font-bold whitespace-nowrap !bg-amber-200 dark:!bg-amber-950 !text-amber-900 dark:!text-amber-300 shrink-0 cursor-pointer flex items-center gap-1.5'
+                  : '!px-3 !py-1.5 rounded-full !text-[11px] font-medium whitespace-nowrap bg-transparent border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 shrink-0 cursor-pointer flex items-center gap-1.5'
+              }
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              Preparando ({preparandoCount})
+            </button>
 
-              <button
-                onClick={() => setLogisticsFilter('LISTO_PARA_RETIRO')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
-                  logisticsFilter === 'LISTO_PARA_RETIRO'
-                    ? 'bg-sky-950 text-sky-300 border border-sky-500 shadow-[0_0_12px_rgba(56,189,248,0.3)]'
-                    : 'text-sky-400/80 hover:text-sky-300 bg-slate-950 border border-slate-800'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-sky-400"></span>
-                Listo Retiro ({listosCount})
-              </button>
+            <button
+              onClick={() => setLogisticsFilter('LISTO_PARA_RETIRO')}
+              className={
+                logisticsFilter === 'LISTO_PARA_RETIRO'
+                  ? '!px-3 !py-1.5 rounded-full !text-[11px] font-bold whitespace-nowrap !bg-sky-200 dark:!bg-sky-950 !text-sky-900 dark:!text-sky-300 shrink-0 cursor-pointer flex items-center gap-1.5'
+                  : '!px-3 !py-1.5 rounded-full !text-[11px] font-medium whitespace-nowrap bg-transparent border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 shrink-0 cursor-pointer flex items-center gap-1.5'
+              }
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+              Listo Retiro ({listosCount})
+            </button>
 
-              <button
-                onClick={() => setLogisticsFilter('EN_TRANSITO')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
-                  logisticsFilter === 'EN_TRANSITO'
-                    ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500 shadow-[0_0_12px_rgba(217,70,239,0.3)]'
-                    : 'text-fuchsia-400/80 hover:text-fuchsia-300 bg-slate-950 border border-slate-800'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-fuchsia-400"></span>
-                En Tránsito ({transitoCount})
-              </button>
+            <button
+              onClick={() => setLogisticsFilter('EN_TRANSITO')}
+              className={
+                logisticsFilter === 'EN_TRANSITO'
+                  ? '!px-3 !py-1.5 rounded-full !text-[11px] font-bold whitespace-nowrap !bg-fuchsia-200 dark:!bg-fuchsia-950 !text-fuchsia-900 dark:!text-fuchsia-300 shrink-0 cursor-pointer flex items-center gap-1.5'
+                  : '!px-3 !py-1.5 rounded-full !text-[11px] font-medium whitespace-nowrap bg-transparent border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 shrink-0 cursor-pointer flex items-center gap-1.5'
+              }
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span>
+              En Tránsito ({transitoCount})
+            </button>
 
-              <button
-                onClick={() => setLogisticsFilter('ENTREGADO')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
-                  logisticsFilter === 'ENTREGADO'
-                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
-                    : 'text-emerald-400/80 hover:text-emerald-300 bg-slate-950 border border-slate-800'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                Entregado ({entregadoCount})
-              </button>
+            <button
+              onClick={() => setLogisticsFilter('ENTREGADO')}
+              className={
+                logisticsFilter === 'ENTREGADO'
+                  ? '!px-3 !py-1.5 rounded-full !text-[11px] font-bold whitespace-nowrap !bg-emerald-200 dark:!bg-emerald-950 !text-emerald-900 dark:!text-emerald-300 shrink-0 cursor-pointer flex items-center gap-1.5'
+                  : '!px-3 !py-1.5 rounded-full !text-[11px] font-medium whitespace-nowrap bg-transparent border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 shrink-0 cursor-pointer flex items-center gap-1.5'
+              }
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Entregado ({entregadoCount})
+            </button>
 
-              <button
-                onClick={() => setLogisticsFilter('ANULADO')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer flex items-center gap-1.5 ${
-                  logisticsFilter === 'ANULADO'
-                    ? 'bg-red-950/80 text-red-400 border border-red-500 shadow-[0_0_12px_rgba(239,68,68,0.3)]'
-                    : 'text-red-400/80 hover:text-red-300 bg-slate-950 border border-slate-800'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-red-700"></span>
-                Anulados ({anuladosCount})
-              </button>
-            </div>
+            <button
+              onClick={() => setLogisticsFilter('ANULADO')}
+              className={
+                logisticsFilter === 'ANULADO'
+                  ? '!px-3 !py-1.5 rounded-full !text-[11px] font-bold whitespace-nowrap !bg-red-200 dark:!bg-red-950 !text-red-900 dark:!text-red-300 shrink-0 cursor-pointer flex items-center gap-1.5'
+                  : '!px-3 !py-1.5 rounded-full !text-[11px] font-medium whitespace-nowrap bg-transparent border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 shrink-0 cursor-pointer flex items-center gap-1.5'
+              }
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              Anulados ({anuladosCount})
+            </button>
+          </div>
 
-            {/* Input de Búsqueda */}
-            <div className="w-full sm:w-auto">
-              <input
-                type="text"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="🔍 Buscar Y2K-..., cliente, PIN, UUID..."
-                className="w-full sm:w-72 bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono transition shadow-inner"
-              />
-            </div>
+          {/* Contenedor del Buscador */}
+          <div className="w-full lg:w-72 shrink-0">
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar Y2K-..."
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-sm text-slate-800 dark:text-slate-100 placeholder-slate-400 focus:border-cyan-500 focus:outline-none transition font-mono"
+            />
           </div>
         </div>
 
-        {/* TABLA DE PEDIDOS CYBER-Y2K */}
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xl overflow-hidden backdrop-blur-md">
+        {/* TABLA DE PEDIDOS */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
           {loadingOrders ? (
             <div className="py-16 text-center space-y-3">
               <div className="w-8 h-8 mx-auto rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"></div>
-              <p className="text-slate-400 text-xs font-mono animate-pulse">Sincronizando base de pedidos en vivo...</p>
+              <p className="text-slate-500 dark:text-slate-400 text-xs font-mono animate-pulse">Sincronizando base de pedidos en vivo...</p>
             </div>
           ) : filteredOrders.length === 0 ? (
-            <div className="text-center py-16 text-slate-400 text-xs space-y-2">
+            <div className="text-center py-16 text-slate-500 dark:text-slate-400 text-xs space-y-2">
               <div className="text-3xl">📦</div>
-              <p className="font-bold text-sm text-white">No se encontraron pedidos.</p>
-              <p className="text-slate-500 font-mono">Ajusta los filtros o limpia la barra de búsqueda.</p>
+              <p className="font-bold text-sm text-slate-800 dark:text-white">No se encontraron pedidos.</p>
+              <p className="text-slate-500 dark:text-slate-400 font-mono">Ajusta los filtros o limpia la barra de búsqueda.</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="border-b border-slate-800 bg-slate-950/70 text-slate-400 uppercase tracking-wider font-mono text-[11px]">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/70 text-slate-500 dark:text-slate-400 uppercase tracking-wider font-mono text-[11px]">
                     <th className="p-4">Código Orden</th>
                     <th className="p-4">Cliente</th>
                     <th className="p-4">Método Entrega</th>
@@ -397,7 +395,7 @@ export default function AdminPedidosPage() {
                     <th className="p-4 text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/60 font-mono">
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-800/60 font-mono text-slate-800 dark:text-slate-200">
                   {filteredOrders.map((order) => {
                     const isPickup = order.deliveryMethod === 'RETIRO_PRESENCIAL';
                     const isAnulado = isOrderAnulado(order);
@@ -409,8 +407,8 @@ export default function AdminPedidosPage() {
                         key={order.id}
                         className={`transition-colors group ${
                           isAnulado
-                            ? 'bg-red-950/15 opacity-75 hover:bg-red-950/25'
-                            : 'hover:bg-slate-800/40'
+                            ? 'bg-red-50/60 dark:bg-red-950/15 opacity-75 hover:bg-red-100/80 dark:hover:bg-red-950/25'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
                         }`}
                       >
                         {/* 1. Código Corto / ID Orden */}
@@ -419,16 +417,16 @@ export default function AdminPedidosPage() {
                             type="button"
                             onClick={() => copyToClipboard(order.shortId || order.id, order.id)}
                             className={`text-left font-extrabold flex items-center gap-1.5 cursor-pointer text-sm ${
-                              isAnulado ? 'text-slate-400 line-through' : 'text-cyan-400 hover:text-cyan-300'
+                              isAnulado ? 'text-slate-400 line-through' : 'text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300'
                             }`}
                             title={`Click para copiar. UUID: ${order.id}`}
                           >
                             <span>{displayCode}</span>
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-[10px] text-slate-400">
                               {copiedId === order.id ? '✓' : '📋'}
                             </span>
                           </button>
-                          <span className="text-[10px] text-slate-500 block font-mono">
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono">
                             {order.createdAt
                               ? new Date(order.createdAt).toLocaleDateString('es-CL', {
                                   day: '2-digit',
@@ -442,14 +440,14 @@ export default function AdminPedidosPage() {
 
                         {/* 2. Cliente (Nombre y Email) */}
                         <td className="p-4">
-                          <div className="font-bold text-white font-sans text-xs">
+                          <div className="font-bold text-slate-800 dark:text-white font-sans text-xs">
                             {order.customerName || 'Cliente Anónimo'}
                           </div>
-                          <div className="text-[11px] text-slate-400 truncate max-w-[180px]">
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-[180px]">
                             {order.customerEmail || 'Sin email'}
                           </div>
                           {order.customerPhone && (
-                            <div className="text-[10px] text-slate-500">
+                            <div className="text-[10px] text-slate-500 dark:text-slate-400">
                               📞 {order.customerPhone}
                             </div>
                           )}
@@ -458,12 +456,12 @@ export default function AdminPedidosPage() {
                         {/* 3. Método de Entrega (Retiro / Envío) */}
                         <td className="p-4">
                           {isPickup ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-950/80 text-cyan-300 border border-cyan-800 text-[10px] font-bold shadow-[0_0_8px_rgba(6,182,212,0.15)]">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-cyan-50 dark:bg-cyan-950/80 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800 text-[10px] font-bold shadow-sm">
                               <span>🏢</span>
                               <span>Retiro en Tienda</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-fuchsia-950/80 text-fuchsia-300 border border-fuchsia-800 text-[10px] font-bold shadow-[0_0_8px_rgba(217,70,239,0.15)]">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-fuchsia-50 dark:bg-fuchsia-950/80 text-fuchsia-700 dark:text-fuchsia-300 border border-fuchsia-200 dark:border-fuchsia-800 text-[10px] font-bold shadow-sm">
                               <span>🚚</span>
                               <span>Envío Región</span>
                             </span>
@@ -476,47 +474,47 @@ export default function AdminPedidosPage() {
                             <span
                               className={`inline-block font-mono font-black px-3 py-1 rounded-lg border tracking-widest text-xs ${
                                 isAnulado
-                                  ? 'bg-slate-900 text-slate-600 border-slate-800 line-through'
-                                  : 'bg-cyan-950/90 text-cyan-300 border-cyan-500/60 shadow-[0_0_12px_rgba(6,182,212,0.3)]'
+                                  ? 'bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-slate-800 line-through'
+                                  : 'bg-cyan-50 dark:bg-cyan-950/90 text-cyan-700 dark:text-cyan-300 border-cyan-300 dark:border-cyan-500/60 shadow-sm'
                               }`}
                             >
                               {order.pickupCode}
                             </span>
                           ) : (
-                            <span className="text-slate-600 text-xs">—</span>
+                            <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
                           )}
                         </td>
 
                         {/* 5. Estado Logístico (Badges con caso especial ANULADO) */}
                         <td className="p-4">
                           {isAnulado ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/40 text-red-500 border border-red-800/80 font-bold text-[10px] shadow-[0_0_10px_rgba(239,68,68,0.2)]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-700"></span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-500 border border-red-200 dark:border-red-800/80 font-bold text-[10px]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                               <span>ANULADO</span>
                             </span>
                           ) : logistics === 'PREPARANDO' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-950 text-amber-300 border border-amber-500 font-bold text-[10px] shadow-[0_0_10px_rgba(245,158,11,0.25)] animate-pulse">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-500 font-bold text-[10px] animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                               <span>PREPARANDO</span>
                             </span>
                           ) : logistics === 'LISTO_PARA_RETIRO' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-950 text-sky-300 border border-sky-500 font-bold text-[10px] shadow-[0_0_10px_rgba(56,189,248,0.25)]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 dark:bg-sky-950 text-sky-800 dark:text-sky-300 border border-sky-300 dark:border-sky-500 font-bold text-[10px]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
                               <span>LISTO PARA RETIRO</span>
                             </span>
                           ) : logistics === 'EN_TRANSITO' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500 font-bold text-[10px] shadow-[0_0_10px_rgba(217,70,239,0.25)]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400"></span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-fuchsia-50 dark:bg-fuchsia-950 text-fuchsia-800 dark:text-fuchsia-300 border border-fuchsia-300 dark:border-fuchsia-500 font-bold text-[10px]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-500"></span>
                               <span>EN TRÁNSITO</span>
                             </span>
                           ) : logistics === 'ENTREGADO' ? (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500 font-bold text-[10px] shadow-[0_0_10px_rgba(16,185,129,0.25)]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-500 font-bold text-[10px]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                               <span>ENTREGADO</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/40 text-red-500 border border-red-800/80 font-bold text-[10px]">
-                              <span className="w-1.5 h-1.5 rounded-full bg-red-700"></span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-500 border border-red-200 dark:border-red-800/80 font-bold text-[10px]">
+                              <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
                               <span>ANULADO</span>
                             </span>
                           )}
@@ -524,18 +522,18 @@ export default function AdminPedidosPage() {
 
                         {/* Total y Estado de Pago */}
                         <td className="p-4">
-                          <div className="font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400 text-xs">
+                          <div className="font-extrabold text-slate-900 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-cyan-400 dark:to-emerald-400 text-xs">
                             ${Number(order.totalAmount ?? 0).toLocaleString('es-CL')} CLP
                           </div>
                           <div className="mt-0.5">
                             {order.status === 'PAGADO' && (
-                              <span className="text-[10px] text-emerald-400 font-bold">✓ Pagado</span>
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">✓ Pagado</span>
                             )}
                             {order.status === 'PENDIENTE' && (
-                              <span className="text-[10px] text-amber-400 font-bold">⏳ Pendiente</span>
+                              <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">⏳ Pendiente</span>
                             )}
                             {order.status === 'CANCELADO' && (
-                              <span className="text-[10px] text-red-500 font-bold">✕ Cancelado</span>
+                              <span className="text-[10px] text-red-600 dark:text-red-500 font-bold">✕ Cancelado</span>
                             )}
                           </div>
                         </td>
@@ -545,7 +543,7 @@ export default function AdminPedidosPage() {
                           <button
                             type="button"
                             onClick={() => setSelectedOrderDetails(order)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 hover:text-white font-bold text-[11px] transition cursor-pointer border border-slate-700"
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-cyan-300 hover:text-slate-900 dark:hover:text-white font-bold text-[11px] transition cursor-pointer border border-slate-200 dark:border-slate-700"
                           >
                             Detalles
                           </button>
@@ -564,30 +562,30 @@ export default function AdminPedidosPage() {
           const isModalAnulado = isOrderAnulado(selectedOrderDetails);
 
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-              <div className="bg-slate-900 border-2 border-cyan-500/50 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-[0_0_50px_rgba(6,182,212,0.25)] space-y-6 relative max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
+              <div className="bg-white dark:bg-slate-900 border-2 border-cyan-500/50 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl dark:shadow-[0_0_50px_rgba(6,182,212,0.25)] space-y-6 relative max-h-[90vh] overflow-y-auto text-slate-800 dark:text-slate-100">
                 {/* Header Modal */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-black text-sm text-cyan-400 bg-cyan-950 px-3 py-1 rounded-xl border border-cyan-800">
+                      <span className="font-mono font-black text-sm text-cyan-700 dark:text-cyan-400 bg-cyan-50 dark:bg-cyan-950 px-3 py-1 rounded-xl border border-cyan-200 dark:border-cyan-800">
                         {selectedOrderDetails.shortId || `#${selectedOrderDetails.id?.slice(0, 8)}`}
                       </span>
                       {isModalAnulado ? (
-                        <span className="text-[10px] bg-red-950/80 text-red-400 border border-red-800 px-2.5 py-0.5 rounded-full font-bold">
+                        <span className="text-[10px] bg-red-50 dark:bg-red-950/80 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-2.5 py-0.5 rounded-full font-bold">
                           ORDEN ANULADA
                         </span>
                       ) : selectedOrderDetails.status === 'PAGADO' ? (
-                        <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-700 px-2.5 py-0.5 rounded-full font-bold">
+                        <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700 px-2.5 py-0.5 rounded-full font-bold">
                           PAGO CONFIRMADO
                         </span>
                       ) : (
-                        <span className="text-[10px] bg-amber-950 text-amber-300 border border-amber-700 px-2.5 py-0.5 rounded-full font-bold animate-pulse">
+                        <span className="text-[10px] bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 px-2.5 py-0.5 rounded-full font-bold animate-pulse">
                           PAGO PENDIENTE
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] font-mono text-slate-500 mt-1.5 break-all">
+                    <p className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-1.5 break-all">
                       UUID: {selectedOrderDetails.id}
                     </p>
                   </div>
@@ -595,7 +593,7 @@ export default function AdminPedidosPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedOrderDetails(null)}
-                    className="text-slate-400 hover:text-white text-xl font-bold p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+                    className="text-slate-400 hover:text-slate-700 dark:hover:text-white text-xl font-bold p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
                     aria-label="Cerrar modal"
                   >
                     ✕
@@ -604,12 +602,12 @@ export default function AdminPedidosPage() {
 
                 {/* ALERTA SI LA ORDEN ESTÁ ANULADA */}
                 {isModalAnulado && (
-                  <div className="p-4 rounded-2xl bg-red-950/40 border border-red-800/90 text-red-300 text-xs font-mono space-y-1">
-                    <div className="flex items-center gap-2 font-bold text-red-400">
+                  <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/90 text-red-700 dark:text-red-300 text-xs font-mono space-y-1">
+                    <div className="flex items-center gap-2 font-bold text-red-600 dark:text-red-400">
                       <span>🚫</span>
                       <span>ORDEN ANULADA</span>
                     </div>
-                    <p className="text-red-300/90">
+                    <p className="text-red-600/90 dark:text-red-300/90">
                       El pago fue cancelado y el stock devuelto. Las acciones de cambio de estado logístico y despacho han sido bloqueadas por seguridad.
                     </p>
                   </div>
@@ -617,21 +615,21 @@ export default function AdminPedidosPage() {
 
                 {/* DATOS DEL CLIENTE Y DESPACHO */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-2 text-xs">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-cyan-400 font-bold block">
+                  <div className="bg-slate-50 dark:bg-slate-950/80 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-cyan-600 dark:text-cyan-400 font-bold block">
                       Datos del Cliente
                     </span>
-                    <p className="text-white font-bold text-sm">{selectedOrderDetails.customerName}</p>
-                    <p className="text-slate-400 font-mono text-[11px]">📧 {selectedOrderDetails.customerEmail}</p>
-                    <p className="text-slate-400 font-mono text-[11px]">📞 {selectedOrderDetails.customerPhone}</p>
+                    <p className="text-slate-900 dark:text-white font-bold text-sm">{selectedOrderDetails.customerName}</p>
+                    <p className="text-slate-600 dark:text-slate-400 font-mono text-[11px]">📧 {selectedOrderDetails.customerEmail}</p>
+                    <p className="text-slate-600 dark:text-slate-400 font-mono text-[11px]">📞 {selectedOrderDetails.customerPhone}</p>
                   </div>
 
-                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 space-y-2 text-xs">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-fuchsia-400 font-bold block">
+                  <div className="bg-slate-50 dark:bg-slate-950/80 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-fuchsia-600 dark:text-fuchsia-400 font-bold block">
                       Logística & Entrega
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-bold">
+                      <span className="text-slate-900 dark:text-white font-bold">
                         {selectedOrderDetails.deliveryMethod === 'RETIRO_PRESENCIAL'
                           ? '🏢 Retiro Presencial en Valparaíso'
                           : '🚚 Envío a Regiones'}
@@ -639,14 +637,14 @@ export default function AdminPedidosPage() {
                     </div>
                     {selectedOrderDetails.pickupCode && (
                       <div className="pt-1">
-                        <span className="text-[10px] text-slate-500 block">PIN Secreto de Retiro:</span>
-                        <span className={`font-mono font-black text-lg tracking-widest ${isModalAnulado ? 'text-slate-500 line-through' : 'text-cyan-300'}`}>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">PIN Secreto de Retiro:</span>
+                        <span className={`font-mono font-black text-lg tracking-widest ${isModalAnulado ? 'text-slate-400 line-through' : 'text-cyan-600 dark:text-cyan-300'}`}>
                           {selectedOrderDetails.pickupCode}
                         </span>
                       </div>
                     )}
                     {selectedOrderDetails.shippingAddress && (
-                      <p className="text-slate-400 text-[11px] font-mono">
+                      <p className="text-slate-600 dark:text-slate-400 text-[11px] font-mono">
                         📍 {selectedOrderDetails.shippingAddress}
                       </p>
                     )}
@@ -654,21 +652,21 @@ export default function AdminPedidosPage() {
                 </div>
 
                 {/* CONTROL DE ESTADO LOGÍSTICO (BLOQUEADO SI ESTÁ ANULADO) */}
-                <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-3">
+                <div className="bg-slate-50 dark:bg-slate-950/90 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-amber-400 font-bold block">
+                    <span className="font-mono text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 font-bold block">
                       Cambiar Estado Logístico
                     </span>
                     {isModalAnulado && (
-                      <span className="text-[10px] font-mono text-red-400 bg-red-950/80 px-2 py-0.5 rounded border border-red-800">
+                      <span className="text-[10px] font-mono text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/80 px-2 py-0.5 rounded border border-red-200 dark:border-red-800">
                         🔒 ACCIONES DESACTIVADAS
                       </span>
                     )}
                   </div>
 
                   {isModalAnulado ? (
-                    <div className="p-3.5 bg-slate-900/60 rounded-xl border border-slate-800/80 text-center">
-                      <p className="text-xs font-mono text-slate-500 italic">
+                    <div className="p-3.5 bg-slate-100 dark:bg-slate-900/60 rounded-xl border border-slate-200 dark:border-slate-800/80 text-center">
+                      <p className="text-xs font-mono text-slate-500 dark:text-slate-400 italic">
                         No es posible reactivar la logística de un pedido anulado.
                       </p>
                     </div>
@@ -683,13 +681,13 @@ export default function AdminPedidosPage() {
                           className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer border ${
                             (selectedOrderDetails.logisticsStatus || 'PREPARANDO') === st
                               ? st === 'PREPARANDO'
-                                ? 'bg-amber-950 text-amber-300 border-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]'
+                                ? 'bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 border-amber-400 dark:border-amber-500 shadow-sm'
                                 : st === 'LISTO_PARA_RETIRO'
-                                ? 'bg-sky-950 text-sky-300 border-sky-500 shadow-[0_0_10px_rgba(56,189,248,0.3)]'
+                                ? 'bg-sky-100 dark:bg-sky-950 text-sky-900 dark:text-sky-300 border-sky-400 dark:border-sky-500 shadow-sm'
                                 : st === 'EN_TRANSITO'
-                                ? 'bg-fuchsia-950 text-fuchsia-300 border-fuchsia-500 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
-                                : 'bg-emerald-950 text-emerald-300 border-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                              : 'bg-slate-900 text-slate-400 hover:text-white border-slate-800'
+                                ? 'bg-fuchsia-100 dark:bg-fuchsia-950 text-fuchsia-900 dark:text-fuchsia-300 border-fuchsia-400 dark:border-fuchsia-500 shadow-sm'
+                                : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-300 border-emerald-400 dark:border-emerald-500 shadow-sm'
+                              : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border-slate-200 dark:border-slate-800'
                           }`}
                         >
                           {st.replace(/_/g, ' ')}
@@ -701,21 +699,21 @@ export default function AdminPedidosPage() {
 
                 {/* PRODUCTOS COMPRADOS */}
                 <div className="space-y-2 text-xs">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-slate-400 font-bold block">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold block">
                     Productos en la Orden ({parseCartItems(selectedOrderDetails.cartItems).length})
                   </span>
-                  <div className="bg-slate-950/80 rounded-2xl p-4 border border-slate-800 divide-y divide-slate-800/60 max-h-48 overflow-y-auto">
+                  <div className="bg-slate-50 dark:bg-slate-950/80 rounded-2xl p-4 border border-slate-200 dark:border-slate-800 divide-y divide-slate-200 dark:divide-slate-800/60 max-h-48 overflow-y-auto">
                     {parseCartItems(selectedOrderDetails.cartItems).map((item: any, idx: number) => (
                       <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between">
                         <div>
-                          <p className={`font-bold text-xs ${isModalAnulado ? 'text-slate-400 line-through' : 'text-white'}`}>
+                          <p className={`font-bold text-xs ${isModalAnulado ? 'text-slate-400 line-through' : 'text-slate-900 dark:text-white'}`}>
                             {item.name || 'Producto'}
                           </p>
-                          <p className="text-[11px] text-slate-400 font-mono">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
                             {item.category || ''} {item.size ? `• Talla: ${item.size}` : ''}
                           </p>
                         </div>
-                        <span className="font-mono font-bold text-emerald-400">
+                        <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
                           ${Number(item.price || 0).toLocaleString('es-CL')}
                         </span>
                       </div>
@@ -724,10 +722,10 @@ export default function AdminPedidosPage() {
                 </div>
 
                 {/* FOOTER MODAL: TOTAL Y ACCIONES DE PAGO */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-800">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-slate-800">
                   <div>
-                    <span className="text-[11px] font-mono text-slate-400 block">Total de la Orden:</span>
-                    <span className="text-xl sm:text-2xl font-black font-mono text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
+                    <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block">Total de la Orden:</span>
+                    <span className="text-xl sm:text-2xl font-black font-mono text-cyan-600 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-cyan-400 dark:to-emerald-400">
                       ${Number(selectedOrderDetails.totalAmount || 0).toLocaleString('es-CL')} CLP
                     </span>
                   </div>
@@ -738,7 +736,7 @@ export default function AdminPedidosPage() {
                         type="button"
                         onClick={() => handleMarcarComoPagado(selectedOrderDetails.id)}
                         disabled={actionLoadingOrderId === selectedOrderDetails.id}
-                        className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer shadow-[0_0_15px_rgba(16,185,129,0.35)] disabled:opacity-50"
+                        className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer shadow-md disabled:opacity-50"
                       >
                         {actionLoadingOrderId === selectedOrderDetails.id ? 'Aprobando...' : '✓ Confirmar Pago'}
                       </button>
@@ -749,7 +747,7 @@ export default function AdminPedidosPage() {
                         type="button"
                         onClick={() => handleCancelarYDevolverStock(selectedOrderDetails)}
                         disabled={actionLoadingOrderId === selectedOrderDetails.id}
-                        className="px-4 py-2.5 rounded-xl bg-red-950/80 hover:bg-red-900 text-red-300 hover:text-white border border-red-800 font-bold text-xs transition cursor-pointer disabled:opacity-50"
+                        className="px-4 py-2.5 rounded-xl bg-red-100 hover:bg-red-200 dark:bg-red-950/80 dark:hover:bg-red-900 text-red-700 dark:text-red-300 hover:text-red-900 dark:hover:text-white border border-red-300 dark:border-red-800 font-bold text-xs transition cursor-pointer disabled:opacity-50"
                       >
                         Anular Pedido y Restituir Stock
                       </button>

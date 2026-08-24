@@ -93,16 +93,16 @@ export function AdminRBACGuard({
 
   if (checkingAuth) {
     return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center space-y-5">
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center space-y-5 bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
         <div className="relative w-16 h-16 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
           <span className="w-4 h-4 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)] animate-pulse" />
         </div>
         <div className="space-y-2">
-          <p className="font-mono text-xs text-cyan-400 uppercase tracking-widest font-bold">
+          <p className="font-mono text-xs text-slate-900 dark:text-white uppercase tracking-widest font-bold">
             SYS://VERIFYING_SECURITY_CLEARANCE...
           </p>
-          <p className="font-mono text-[11px] text-slate-500">
+          <p className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
             Comprobando tokens de autorización y grupos RBAC de AWS Cognito
           </p>
         </div>
@@ -272,7 +272,7 @@ export function AdminGuard({
   children: (props: { signOut?: () => void; user?: any; userRole?: string }) => React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 selection:bg-cyan-500 selection:text-black">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-cyan-500 selection:text-black">
       {/* Estilos personalizados para el contenedor de Login de AWS Amplify en modo oscuro Y2K */}
       <style jsx global>{`
         [data-amplify-authenticator] {

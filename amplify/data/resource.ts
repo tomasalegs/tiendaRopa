@@ -23,6 +23,7 @@ const schema = a.schema({
     promoType: a.string(),                // 'descuento' | 'remate'
     salePrice: a.integer(),               // Precio rebajado / remate
   }).authorization(allow => [
+    allow.publicApiKey().to(['read']),
     allow.guest().to(['read']),
     allow.authenticated().to(['read']),
     allow.groups(['Super_Admin', 'Admin_Tienda']).to(['create', 'update', 'delete', 'read']),
@@ -44,8 +45,9 @@ const schema = a.schema({
     trackingNumber: a.string(), // Número de seguimiento de courier para envíos a región
     logisticsStatus: a.string(), // 'PREPARANDO', 'LISTO_PARA_RETIRO', 'EN_TRANSITO', 'ENTREGADO'
   }).authorization(allow => [
-    allow.guest().to(['create']), // Si permites compras sin registro
-    allow.authenticated().to(['create', 'read']), // CRÍTICO: Permite a los clientes ver sus pedidos
+    allow.publicApiKey().to(['create', 'read']),
+    allow.guest().to(['create', 'read']),
+    allow.authenticated().to(['create', 'read']),
     allow.groups(['Super_Admin', 'Admin_Tienda', 'Logistica_Operadores']).to(['create', 'update', 'delete', 'read']),
   ]),
 
@@ -57,6 +59,7 @@ const schema = a.schema({
     actionUrl: a.string(), // Ruta de redirección al hacer clic en el banner
     isActive: a.boolean().default(true),
   }).authorization(allow => [
+    allow.publicApiKey().to(['read']),
     allow.guest().to(['read']),
     allow.authenticated().to(['read']),
     allow.groups(['Super_Admin', 'Admin_Tienda']).to(['create', 'update', 'delete', 'read']),
@@ -68,6 +71,9 @@ export type Schema = ClientSchema<typeof schema>;
 export const data = defineData({
   schema,
   authorizationModes: {
-    defaultAuthorizationMode: 'identityPool',
+    defaultAuthorizationMode: 'apiKey',
+    apiKeyAuthorizationMode: {
+      expiresInDays: 30,
+    },
   },
 });

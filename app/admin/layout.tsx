@@ -11,6 +11,7 @@ import { Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
 import AdminSidebar from './AdminSidebar';
 import ThemeToggle from '@/components/ThemeToggle';
+import { liberarReservasExpiradas } from '@/utils/stockCleanup';
 
 Amplify.configure(outputs, { ssr: true });
 
@@ -274,6 +275,10 @@ function AdminRBACShell({
           setUserRole(matchedRole);
           setIsAuthorized(true);
           setCheckingAuth(false);
+          // Ejecutar Lazy Cleanup exclusivamente en la sesión del Administrador Autenticado (userPool)
+          liberarReservasExpiradas().catch((err) => {
+            console.error('Error al ejecutar cleanup de reservas en admin:', err);
+          });
         } else {
           setIsAuthorized(false);
           setCheckingAuth(false);
@@ -313,16 +318,16 @@ function AdminRBACShell({
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-5 bg-slate-950">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center space-y-5 bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
         <div className="relative w-16 h-16 flex items-center justify-center">
           <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30 border-t-cyan-400 animate-spin" />
           <span className="w-4 h-4 rounded-full bg-cyan-400 shadow-[0_0_15px_rgba(34,211,238,1)] animate-pulse" />
         </div>
         <div className="space-y-2">
-          <p className="font-mono text-xs text-cyan-400 uppercase tracking-widest font-bold">
+          <p className="font-mono text-xs text-slate-900 dark:text-white uppercase tracking-widest font-bold">
             SYS://VERIFYING_SECURITY_CLEARANCE...
           </p>
-          <p className="font-mono text-[11px] text-slate-500">
+          <p className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
             Comprobando tokens de autorización y grupos RBAC de AWS Cognito
           </p>
         </div>

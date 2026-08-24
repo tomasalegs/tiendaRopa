@@ -61,36 +61,49 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
 
     async function loadProduct() {
       try {
-        const session = await fetchAuthSession();
-        const isAuth = session.tokens !== undefined;
-        const authMode = isAuth ? 'userPool' : 'identityPool';
-
-        const { data, errors } = await client.models.Product.get(
+        let res = await client.models.Product.get(
           { id: resolvedId },
-          { authMode }
+          { authMode: 'apiKey' }
         );
+
+        // Fallback defensivo en caso de error
+        if (res.errors && res.errors.length > 0 && !res.data) {
+          try {
+            const fallbackRes = await client.models.Product.get(
+              { id: resolvedId },
+              { authMode: 'identityPool' }
+            );
+            if (fallbackRes.data) {
+              res = fallbackRes;
+            }
+          } catch (fallbackErr) {
+            console.error('GraphQL Error en fallback authMode product detail:', fallbackErr);
+          }
+        }
 
         if (!isMounted) return;
 
-        if (errors && errors.length > 0) {
-          console.error('GraphQL errors:', errors);
-          setError('No fue posible cargar la información del producto.');
-          setLoading(false);
-          return;
+        if (res.errors && res.errors.length > 0) {
+          console.error('Error AppSync 401:', res.errors);
+          if (!res.data) {
+            setError('Error al cargar el producto. Revisa la consola.');
+            setLoading(false);
+            return;
+          }
         }
 
-        if (!data) {
+        if (!res.data) {
           setError('Producto no encontrado en nuestro catálogo.');
           setLoading(false);
           return;
         }
 
-        setProduct(data);
+        setProduct(res.data);
         setLoading(false);
       } catch (err) {
-        console.error('Error al obtener producto:', err);
+        console.error('Error AppSync 401 / Excepción al obtener producto:', err);
         if (isMounted) {
-          setError('Ocurrió un error de red al consultar el producto.');
+          setError('Error al cargar el producto. Revisa la consola.');
           setLoading(false);
         }
       }
@@ -355,10 +368,10 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
                           key={`${imgPath}-${idx}`}
                           type="button"
                           onClick={() => setSelectedImage(imgPath)}
-                          className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all cursor-pointer bg-slate-950 ${
+                          className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 transition-all cursor-pointer bg-slate-100 dark:bg-slate-900 ${
                             isCurrent
-                              ? 'border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.6)] scale-105 ring-2 ring-cyan-500/30'
-                              : 'border-slate-800 hover:border-cyan-500/50 opacity-60 hover:opacity-100'
+                              ? 'border-slate-800 dark:border-cyan-400 shadow-sm opacity-100 ring-2 ring-cyan-500/30'
+                              : 'border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100'
                           }`}
                           aria-label={`Ver foto ${idx + 1}`}
                         >
@@ -366,7 +379,7 @@ export default function ProductDetailPage({ params: paramsProp }: PageProps) {
                             path={imgPath}
                             alt={`${product.name || 'Producto'} miniatura ${idx + 1}`}
                             loading="lazy"
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain p-1 mix-blend-normal"
                             fallbackSrc="/favicon.ico"
                           />
                         </button>

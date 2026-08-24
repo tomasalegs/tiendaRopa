@@ -106,66 +106,7 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       const isAuth = session.tokens !== undefined;
       const authMode = isAuth ? 'userPool' : 'identityPool';
 
-      // 2. a) Verificar que haya stock disponible en tiempo real
-      const requestedMap: Record<string, { qty: number; sampleItem: Schema['Product']['type'] }> = {};
-      for (const item of cart) {
-        if (item?.id) {
-          if (!requestedMap[item.id]) {
-            requestedMap[item.id] = { qty: 0, sampleItem: item };
-          }
-          requestedMap[item.id].qty += 1;
-        }
-      }
-
-      const uniqueIds = Object.keys(requestedMap);
-
-      const productChecks = await Promise.all(
-        uniqueIds.map((id) =>
-          client.models.Product.get({ id }, { authMode })
-            .then((res) => ({ id, data: res.data, error: null }))
-            .catch((err) => ({ id, data: null, error: err }))
-        )
-      );
-
-      // Comprobar si algún producto no tiene stock suficiente
-      for (const check of productChecks) {
-        const { id, data } = check;
-        const requested = requestedMap[id].qty;
-        const name = data?.name || requestedMap[id].sampleItem?.name || 'Producto';
-
-        if (!data || data.isAvailable === false || (data.stock ?? 0) <= 0) {
-          throw new Error(`El producto "${name}" ya no está disponible o se agotó.`);
-        }
-
-        if ((data.stock ?? 0) < requested) {
-          throw new Error(
-            `Stock insuficiente para "${name}". Solicitas ${requested} unidades, pero solo quedan ${data.stock} disp.`
-          );
-        }
-      }
-
-      // 3. b) Actualizar los productos en la base de datos restando el stock
-      for (const check of productChecks) {
-        const { id, data } = check;
-        if (!data) continue;
-
-        const requested = requestedMap[id].qty;
-        const currentStock = data.stock ?? 0;
-        const newStock = Math.max(0, currentStock - requested);
-        const newIsAvailable = newStock > 0;
-
-        const updateResult = await client.models.Product.update({
-          id,
-          stock: newStock,
-          isAvailable: newIsAvailable,
-        });
-
-        if (updateResult.errors && updateResult.errors.length > 0) {
-          console.error('Error al descontar stock:', updateResult.errors);
-        }
-      }
-
-      // 4. c) Crear el registro en el modelo Order con estado 'PENDIENTE'
+      // 2. Crear la Orden en el modelo Order con estado 'PENDIENTE'
       const cartSummary = cart.map((p) => ({
         id: p.id,
         name: p.name,
@@ -176,29 +117,71 @@ export default function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
         imageUrls: p.imageUrls,
       }));
 
-      const orderResult = await client.models.Order.create({
-        customerName: formData.customerName.trim(),
-        customerEmail: formData.customerEmail.trim(),
-        customerPhone: formData.customerPhone.trim(),
-        shippingAddress: formData.shippingAddress.trim(),
-        totalAmount: Number(cartTotal),
-        status: 'PENDIENTE',
-        cartItems: JSON.stringify(cartSummary),
-      });
+      const orderResult = await client.models.Order.create(
+        {
+          customerName: formData.customerName.trim(),
+          customerEmail: formData.customerEmail.trim(),
+          customerPhone: formData.customerPhone.trim(),
+          shippingAddress: formData.shippingAddress.trim(),
+          totalAmount: Number(cartTotal),
+          status: 'PENDIENTE',
+          cartItems: JSON.stringify(cartSummary),
+        },
+        { authMode }
+      );
 
       if (orderResult.errors && orderResult.errors.length > 0) {
         console.error('Errores al crear la orden:', orderResult.errors);
         throw new Error('No se pudo registrar la orden en el sistema. Intenta nuevamente.');
       }
 
-      const created = orderResult.data;
+      const createdOrderData = orderResult.data;
 
-      // 5. d) Limpiar el carrito global
+      // 3. NUEVO PASO: Descontar Stock inmediatamente después de crear la Orden de forma exitosa
+      if (createdOrderData) {
+        const requestedQtyMap: Record<string, number> = {};
+        for (const item of cart) {
+          if (item?.id) {
+            requestedQtyMap[item.id] = (requestedQtyMap[item.id] || 0) + 1;
+          }
+        }
+
+        const uniqueProductIds = Object.keys(requestedQtyMap);
+
+        for (const productId of uniqueProductIds) {
+          try {
+            // Obtener el producto actual para saber su stock real
+            const { data: currentProduct } = await client.models.Product.get(
+              { id: productId },
+              { authMode }
+            );
+
+            if (currentProduct && typeof currentProduct.stock === 'number') {
+              const qtyDeducted = requestedQtyMap[productId];
+              const nuevoStock = Math.max(0, currentProduct.stock - qtyDeducted);
+              const nuevoIsAvailable = nuevoStock > 0;
+
+              await client.models.Product.update(
+                {
+                  id: productId,
+                  stock: nuevoStock,
+                  isAvailable: nuevoIsAvailable,
+                },
+                { authMode }
+              );
+            }
+          } catch (err) {
+            console.error(`Error descontando stock para el producto ${productId}`, err);
+          }
+        }
+      }
+
+      // 4. Limpiar el carrito global y mostrar comprobante de éxito
       clearCart();
       setIsCartOpen(false);
 
       setCreatedOrder({
-        id: created?.id || 'ORD-' + Math.floor(100000 + Math.random() * 900000),
+        id: createdOrderData?.id || 'ORD-' + Math.floor(100000 + Math.random() * 900000),
         customerName: formData.customerName.trim(),
         totalAmount: cartTotal,
       });

@@ -83,14 +83,10 @@ export default function CartDrawer() {
     const issuesFound: Record<string, StockIssue> = {};
 
     try {
-      const session = await fetchAuthSession();
-      const isAuth = session.tokens !== undefined;
-      const authMode = isAuth ? 'userPool' : 'identityPool';
-
-      // 2. Consultar el estado actual de cada producto en Amplify Data con authMode dinámico
+      // 2. Consultar el estado actual de cada producto en Amplify Data con authMode público
       const results = await Promise.all(
         uniqueIds.map((id) =>
-          client.models.Product.get({ id }, { authMode })
+          client.models.Product.get({ id }, { authMode: 'identityPool' })
             .then((res) => ({ id, data: res.data, error: null }))
             .catch((err) => ({ id, data: null, error: err }))
         )
@@ -168,7 +164,7 @@ export default function CartDrawer() {
       const uniqueIds = Array.from(new Set(cart.map((item) => item?.id).filter(Boolean)));
       const results = await Promise.all(
         uniqueIds.map((id) =>
-          client.models.Product.get({ id })
+          client.models.Product.get({ id }, { authMode: 'identityPool' })
             .then((res) => ({ id, data: res.data }))
             .catch(() => ({ id, data: null }))
         )

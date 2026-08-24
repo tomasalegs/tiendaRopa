@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Amplify } from 'aws-amplify';
@@ -86,11 +86,42 @@ function HomeContent() {
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [selectedGender, setSelectedGender] = useState<string>('Todos');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+  const [isMobileDropdownOpen, setIsMobileDropdownOpen] = useState<boolean>(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
   const [activePromo, setActivePromo] = useState<string | null>(isSaleFilterParam ? 'descuento' : null);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [expandedGender, setExpandedGender] = useState<string | null>(null);
   const [addedProductId, setAddedProductId] = useState<string | null>(null);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+
+  // Hook Click Outside para cerrar el dropdown si el usuario hace clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+      if (mobileSearchRef.current && !mobileSearchRef.current.contains(event.target as Node)) {
+        setIsMobileDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Lógica Predictiva: Filtrar sugerencias con stock > 0 limitadas a 5 resultados
+  const sugerencias = searchQuery.trim()
+    ? products
+        .filter(
+          (prod) =>
+            prod &&
+            (prod.stock ?? 0) > 0 &&
+            prod.isAvailable !== false &&
+            prod.name?.toLowerCase().includes(searchQuery.trim().toLowerCase())
+        )
+        .slice(0, 5)
+    : [];
 
   // Sincronizar parámetro URL de ofertas si está presente
   useEffect(() => {
@@ -182,47 +213,75 @@ function HomeContent() {
 
     async function loadProducts() {
       try {
-        const session = await fetchAuthSession();
-        const isAuth = session.tokens !== undefined;
-        const authMode = isAuth ? 'userPool' : 'identityPool';
-
         const filterObj: any = {
           isAvailable: { eq: true },
         };
 
-        const { data: items, errors } = await client.models.Product.list({
-          authMode,
-          filter: filterObj,
-        });
+        // Forzar authMode: 'apiKey' (Public Reader) para la Vitrina Pública
+        let resProducts = await client.models.Product.list(
+          { filter: filterObj },
+          { authMode: 'apiKey' }
+        );
 
-        if (errors && errors.length > 0) {
-          console.error('AppSync Errors:', errors);
+        if (resProducts.errors && resProducts.errors.length > 0 && (!resProducts.data || resProducts.data.length === 0)) {
+          try {
+            const fallbackRes = await client.models.Product.list(
+              { filter: filterObj },
+              { authMode: 'identityPool' }
+            );
+            if (fallbackRes.data && fallbackRes.data.length > 0) {
+              resProducts = fallbackRes;
+            }
+          } catch (fbErr) {
+            console.error("GraphQL Error en fallback de productos:", fbErr);
+          }
         }
 
-        if (isMounted && items) {
-          const availableItems = items.filter(
+        if (resProducts.errors && resProducts.errors.length > 0) {
+          console.error("GraphQL Error completo al listar productos:", resProducts.errors);
+        }
+
+        if (isMounted && resProducts.data) {
+          const availableItems = resProducts.data.filter(
             (p) => p !== null && p !== undefined && p.isAvailable !== false
           );
           setProducts(availableItems as Schema['Product']['type'][]);
         }
 
-        // Cargar Banners Activos para el Carrusel
+        // Cargar Banners Activos para el Carrusel usando authMode público apiKey
         try {
-          const { data: bannerData } = await client.models.MarketingBanner.list({
-            authMode,
-            filter: {
-              isActive: { eq: true },
-            },
-          });
-          if (isMounted && bannerData) {
-            const activeBanners = bannerData.filter(Boolean) as Schema['MarketingBanner']['type'][];
+          let resBanners = await client.models.MarketingBanner.list(
+            { filter: { isActive: { eq: true } } },
+            { authMode: 'apiKey' }
+          );
+
+          if (resBanners.errors && resBanners.errors.length > 0 && (!resBanners.data || resBanners.data.length === 0)) {
+            try {
+              const fallbackBanners = await client.models.MarketingBanner.list(
+                { filter: { isActive: { eq: true } } },
+                { authMode: 'identityPool' }
+              );
+              if (fallbackBanners.data) {
+                resBanners = fallbackBanners;
+              }
+            } catch (fbErr) {
+              console.error("GraphQL Error en fallback de banners:", fbErr);
+            }
+          }
+
+          if (resBanners.errors && resBanners.errors.length > 0) {
+            console.error("GraphQL Error completo al listar banners:", resBanners.errors);
+          }
+
+          if (isMounted && resBanners.data) {
+            const activeBanners = resBanners.data.filter(Boolean) as Schema['MarketingBanner']['type'][];
             setBanners(activeBanners);
           }
         } catch (bannerErr) {
-          console.warn('Error al cargar banners:', bannerErr);
+          console.error('GraphQL Error completo en try/catch de banners:', bannerErr);
         }
       } catch (err) {
-        console.error('Error al cargar catálogo dinámico:', err);
+        console.error('GraphQL Error completo al cargar catálogo dinámico:', err);
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -230,46 +289,8 @@ function HomeContent() {
 
     loadProducts();
 
-    let sub: any = null;
-    async function subscribeCatalog() {
-      try {
-        const session = await fetchAuthSession();
-        const isAuth = session.tokens !== undefined;
-        const authMode = isAuth ? 'userPool' : 'identityPool';
-
-        const filterObj: any = {
-          isAvailable: { eq: true },
-        };
-
-        sub = client.models.Product.observeQuery({
-          authMode,
-          filter: filterObj,
-        }).subscribe({
-          next: ({ items, isSynced }) => {
-            if (!isMounted) return;
-            const availableItems = (items || []).filter(
-              (p) => p !== null && p !== undefined && p.isAvailable !== false
-            );
-            setProducts(availableItems as Schema['Product']['type'][]);
-            if (isSynced) setLoading(false);
-          },
-          error: (err) => {
-            console.error('AppSync ObserveQuery Error:', err);
-            if (isMounted) setLoading(false);
-          },
-        });
-      } catch (err) {
-        console.warn('ObserveQuery no inicializado, usando carga directa:', err);
-      }
-    }
-
-    subscribeCatalog();
-
     return () => {
       isMounted = false;
-      if (sub && typeof sub.unsubscribe === 'function') {
-        sub.unsubscribe();
-      }
     };
   }, []);
 
@@ -519,18 +540,22 @@ function HomeContent() {
             </button>
           </div>
 
-          {/* Centro: Input de búsqueda ancho */}
+          {/* Centro: Input de búsqueda ancho con Autocompletado Predictivo */}
           <div className="flex-1 max-w-2xl mx-2 hidden sm:block">
-            <div className="relative">
+            <div className="relative" ref={searchRef}>
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
                 placeholder="Buscar en Y2K Store por nombre, color, marca..."
                 className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-full py-2.5 pl-11 pr-10 text-sm text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all shadow-inner"
               />
               <svg
-                className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"
+                className="w-5 h-5 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -544,11 +569,41 @@ function HomeContent() {
               </svg>
               {searchQuery && (
                 <button
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIsDropdownOpen(false);
+                  }}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs bg-slate-200 dark:bg-slate-800 rounded-full w-5 h-5 flex items-center justify-center cursor-pointer"
                 >
                   ×
                 </button>
+              )}
+
+              {/* DROPDOWN FLOTANTE AUTOCOMPLETADO PREDICTIVO ESTILO FALABELLA */}
+              {searchQuery && isDropdownOpen && sugerencias.length > 0 && (
+                <div className="absolute z-50 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-2xl mt-1.5 max-h-60 overflow-y-auto backdrop-blur-md">
+                  <ul className="py-2 text-sm text-slate-700 dark:text-slate-200 divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
+                    {sugerencias.map((prod) => (
+                      <li key={prod.id}>
+                        <Link
+                          href={`/producto/${prod.id}`}
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="flex items-center justify-between px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer font-medium transition-colors group"
+                        >
+                          <div className="flex items-center gap-2.5 truncate">
+                            <span className="text-cyan-500 text-xs shrink-0">🔍</span>
+                            <span className="font-bold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 truncate">
+                              {prod.name}
+                            </span>
+                          </div>
+                          <span className="text-slate-400 dark:text-slate-500 text-xs shrink-0 font-mono ml-2">
+                            en stock ({prod.stock})
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
             </div>
           </div>
@@ -616,33 +671,64 @@ function HomeContent() {
           </div>
         </div>
 
-        {/* Barra de búsqueda móvil */}
+        {/* Barra de búsqueda móvil con Autocompletado Predictivo */}
         <div className="px-4 pb-3 sm:hidden pt-2">
-          <div className="relative">
+          <div className="relative" ref={mobileSearchRef}>
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsMobileDropdownOpen(true)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsMobileDropdownOpen(true);
+              }}
               placeholder="Buscar en Y2K Store..."
               className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-full py-2 pl-10 pr-9 text-xs text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 focus:outline-none focus:border-cyan-500"
             />
             <svg
-              className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"
+              className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
+
+            {/* DROPDOWN FLOTANTE MOBILE */}
+            {searchQuery && isMobileDropdownOpen && sugerencias.length > 0 && (
+              <div className="absolute z-50 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-xl mt-1.5 max-h-60 overflow-y-auto backdrop-blur-md">
+                <ul className="py-2 text-xs text-slate-700 dark:text-slate-200 divide-y divide-slate-100 dark:divide-slate-800/60 font-sans">
+                  {sugerencias.map((prod) => (
+                    <li key={prod.id}>
+                      <Link
+                        href={`/producto/${prod.id}`}
+                        onClick={() => setIsMobileDropdownOpen(false)}
+                        className="flex items-center justify-between px-3.5 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:text-cyan-600 dark:hover:text-cyan-400 cursor-pointer font-medium transition-colors group"
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="text-cyan-500 text-[10px] shrink-0">🔍</span>
+                          <span className="font-bold text-slate-900 dark:text-white group-hover:text-cyan-600 dark:group-hover:text-cyan-400 truncate">
+                            {prod.name}
+                          </span>
+                        </div>
+                        <span className="text-slate-400 dark:text-slate-500 text-[10px] shrink-0 font-mono ml-1.5">
+                          stock ({prod.stock})
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       {/* CARRUSEL DE MARKETING DINÁMICO (HERO SLIDER) */}
-      <section className="relative overflow-hidden border-b border-cyan-500/20 bg-slate-950 min-h-[360px] sm:min-h-[440px] flex flex-col justify-between">
-        {/* Fondo con Patrón Cyber */}
-        <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900/80 to-slate-950 z-0">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f293715_1px,transparent_1px),linear-gradient(to_bottom,#1f293715_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+      <section className="relative overflow-hidden border-b border-slate-200 dark:border-cyan-500/20 bg-gradient-to-r from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 min-h-[360px] sm:min-h-[440px] flex flex-col justify-between transition-colors duration-200">
+        {/* Fondo con Patrón Suave */}
+        <div className="absolute inset-0 bg-gradient-to-b from-slate-100/60 via-white/80 to-slate-100/60 dark:from-slate-950 dark:via-slate-900/80 dark:to-slate-950 z-0">
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#64748b15_1px,transparent_1px),linear-gradient(to_bottom,#64748b15_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#1f293715_1px,transparent_1px),linear-gradient(to_bottom,#1f293715_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
         </div>
 
         {/* Contenido Principal del Slide */}
@@ -655,21 +741,21 @@ function HomeContent() {
                 className="space-y-4 animate-fadeIn max-w-3xl block transition-all duration-300"
               >
                 {/* Badge Dinámico */}
-                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-950/70 text-fuchsia-300 text-xs font-mono tracking-widest uppercase shadow-[0_0_15px_rgba(217,70,239,0.35)]">
-                  <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-ping" />
+                <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-fuchsia-300 dark:border-fuchsia-500/40 bg-fuchsia-100/80 dark:bg-fuchsia-950/70 text-fuchsia-800 dark:text-fuchsia-300 text-xs font-mono tracking-widest uppercase shadow-sm dark:shadow-[0_0_15px_rgba(217,70,239,0.35)]">
+                  <span className="w-2 h-2 rounded-full bg-fuchsia-500 dark:bg-fuchsia-400 animate-ping" />
                   <span>{slide.tag}</span>
                 </div>
 
                 {/* Título */}
-                <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white uppercase leading-tight drop-shadow">
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-400">
+                <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-tight drop-shadow-sm">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 via-sky-600 to-fuchsia-600 dark:from-cyan-400 dark:via-sky-300 dark:to-fuchsia-400">
                     {slide.title}
                   </span>
                 </h2>
 
                 {/* Subtítulo */}
                 {slide.subtitle && (
-                  <p className="text-xs sm:text-base text-slate-300 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-sm">
+                  <p className="text-xs sm:text-base text-slate-700 dark:text-slate-300 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-sm">
                     {slide.subtitle}
                   </p>
                 )}
@@ -682,7 +768,7 @@ function HomeContent() {
                         href={slide.socialLinks?.tiktok}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-6 py-2 rounded-full border border-cyan-400 text-cyan-400 hover:bg-cyan-400/20 transition-colors font-bold tracking-widest text-sm"
+                        className="px-6 py-2 rounded-full border border-cyan-500 dark:border-cyan-400 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-400/20 transition-colors font-bold tracking-widest text-sm shadow-sm"
                       >
                         TIKTOK
                       </a>
@@ -690,7 +776,7 @@ function HomeContent() {
                         href={slide.socialLinks?.instagram}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-6 py-2 rounded-full border border-fuchsia-500 text-fuchsia-500 hover:bg-fuchsia-500/20 transition-colors font-bold tracking-widest text-sm"
+                        className="px-6 py-2 rounded-full border border-fuchsia-500 text-fuchsia-700 dark:text-fuchsia-400 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-500/20 transition-colors font-bold tracking-widest text-sm shadow-sm"
                       >
                         INSTAGRAM
                       </a>
@@ -698,7 +784,7 @@ function HomeContent() {
                         href={slide.socialLinks?.facebook}
                         target="_blank"
                         rel="noreferrer"
-                        className="px-6 py-2 rounded-full border border-blue-500 text-blue-500 hover:bg-blue-500/20 transition-colors font-bold tracking-widest text-sm"
+                        className="px-6 py-2 rounded-full border border-blue-500 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/20 transition-colors font-bold tracking-widest text-sm shadow-sm"
                       >
                         FACEBOOK
                       </a>
@@ -710,7 +796,7 @@ function HomeContent() {
                         setActivePromo(slide.actionType);
                         document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' });
                       }}
-                      className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-bold py-3 px-8 rounded-full shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all transform hover:scale-105 cursor-pointer font-mono text-sm tracking-wider"
+                      className="bg-gradient-to-r from-cyan-600 to-fuchsia-600 hover:from-cyan-500 hover:to-fuchsia-500 text-white font-bold py-3 px-8 rounded-full shadow-md dark:shadow-[0_0_15px_rgba(6,182,212,0.6)] transition-all transform hover:scale-105 cursor-pointer font-mono text-sm tracking-wider"
                     >
                       {slide.btnText}
                     </button>
@@ -719,8 +805,6 @@ function HomeContent() {
               </div>
             );
           })()}
-
-
         </div>
 
         {/* Controles de Navegación del Carrusel (Flechas y Dots) */}
@@ -890,11 +974,16 @@ function HomeContent() {
                           ¡ÚLTIMAS {product.stock}!
                         </span>
                       )}
+                      {(product.stock <= 0 || product.isAvailable === false) && (
+                        <span className="px-2 py-0.5 rounded bg-slate-800/90 backdrop-blur-md text-[9px] font-mono font-bold text-rose-400 border border-rose-800/80 shadow-md">
+                          🚫 AGOTADO
+                        </span>
+                      )}
                     </div>
                   </Link>
 
                   {/* Cuerpo de la tarjeta */}
-                  <div className="p-4 flex flex-col justify-between">
+                  <div className="p-4 flex flex-col justify-between flex-1">
                     <div className="flex justify-between items-start mb-2 gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mb-1">{product.category}</p>
@@ -909,6 +998,28 @@ function HomeContent() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Botón de Acción Directa / Estado de Stock */}
+                    <button
+                      type="button"
+                      disabled={product.stock <= 0 || product.isAvailable === false}
+                      onClick={() => handleAddToCart(product)}
+                      className={`w-full mt-3 py-2 px-3 rounded-xl text-xs font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm ${
+                        product.stock <= 0 || product.isAvailable === false
+                          ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-300 dark:border-slate-700 cursor-not-allowed'
+                          : isJustAdded
+                          ? 'bg-emerald-600 text-white shadow-[0_0_12px_rgba(16,185,129,0.5)]'
+                          : 'bg-cyan-100 dark:bg-cyan-950/80 hover:bg-cyan-200 dark:hover:bg-cyan-900 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700/60'
+                      }`}
+                    >
+                      {product.stock <= 0 || product.isAvailable === false ? (
+                        <span>🚫 AGOTADO</span>
+                      ) : isJustAdded ? (
+                        <span>✓ ¡AGREGADO!</span>
+                      ) : (
+                        <span>+ AGREGAR AL CARRITO</span>
+                      )}
+                    </button>
                   </div>
                 </div>
               );
