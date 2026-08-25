@@ -218,17 +218,17 @@ function HomeContent() {
         };
 
         // Forzar authMode: 'apiKey' (Public Reader) para la Vitrina Pública
-        let resProducts = await client.models.Product.list(
-          { filter: filterObj },
-          { authMode: 'apiKey' }
-        );
+        let resProducts = await client.models.Product.list({
+          filter: filterObj,
+          authMode: 'apiKey',
+        });
 
         if (resProducts.errors && resProducts.errors.length > 0 && (!resProducts.data || resProducts.data.length === 0)) {
           try {
-            const fallbackRes = await client.models.Product.list(
-              { filter: filterObj },
-              { authMode: 'identityPool' }
-            );
+            const fallbackRes = await client.models.Product.list({
+              filter: filterObj,
+              authMode: 'identityPool',
+            });
             if (fallbackRes.data && fallbackRes.data.length > 0) {
               resProducts = fallbackRes;
             }
@@ -250,17 +250,17 @@ function HomeContent() {
 
         // Cargar Banners Activos para el Carrusel usando authMode público apiKey
         try {
-          let resBanners = await client.models.MarketingBanner.list(
-            { filter: { isActive: { eq: true } } },
-            { authMode: 'apiKey' }
-          );
+          let resBanners = await client.models.MarketingBanner.list({
+            filter: { isActive: { eq: true } },
+            authMode: 'apiKey',
+          });
 
           if (resBanners.errors && resBanners.errors.length > 0 && (!resBanners.data || resBanners.data.length === 0)) {
             try {
-              const fallbackBanners = await client.models.MarketingBanner.list(
-                { filter: { isActive: { eq: true } } },
-                { authMode: 'identityPool' }
-              );
+              const fallbackBanners = await client.models.MarketingBanner.list({
+                filter: { isActive: { eq: true } },
+                authMode: 'identityPool',
+              });
               if (fallbackBanners.data) {
                 resBanners = fallbackBanners;
               }

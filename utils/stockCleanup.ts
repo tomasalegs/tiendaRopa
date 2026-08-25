@@ -36,17 +36,15 @@ export async function liberarReservasExpiradas(): Promise<{ processedCount: numb
     const fechaLimite = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
     // 2. Buscar Órdenes Vencidas usando 'userPool' explícitamente (status 'PENDIENTE' y createdAt < fechaLimite)
-    const resList = await client.models.Order.list(
-      {
-        filter: {
-          status: { eq: 'PENDIENTE' },
-          createdAt: { lt: fechaLimite },
-        },
+    const resList = await client.models.Order.list({
+      filter: {
+        status: { eq: 'PENDIENTE' },
+        createdAt: { lt: fechaLimite },
       },
-      { authMode: 'userPool' }
-    );
+      authMode: 'userPool',
+    });
 
-    const ordenesVencidas = (resList.data || []).filter((o): o is Schema['Order']['type'] => o !== null && o !== undefined);
+    const ordenesVencidas = (resList.data || []).filter((o): o is NonNullable<typeof o> => o !== null && o !== undefined);
     const listErrors = resList.errors;
 
     if (listErrors && listErrors.length > 0 && ordenesVencidas.length === 0) {
