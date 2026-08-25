@@ -524,9 +524,9 @@ function HomeContent() {
 
       {/* NAVBAR SUPERIOR ESTILO CYBER-Y2K */}
       <header className="sticky top-0 z-30 w-full bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 sm:px-8 py-3.5 shadow-sm transition-colors duration-200">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 w-full">
           {/* Izquierda: Logotipo Y2K y Botón Categorías */}
-          <div className="flex items-center gap-3 sm:gap-6 flex-shrink-0">
+          <div className="flex items-center gap-2 sm:gap-6 flex-shrink-0">
             <button
               onClick={() => {
                 setSelectedCategory('Todas');
@@ -543,13 +543,13 @@ function HomeContent() {
 
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs sm:text-sm font-semibold transition-all hover:border-cyan-500/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer"
+              className="flex items-center gap-2 px-2.5 sm:px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 text-xs sm:text-sm font-semibold transition-all hover:border-cyan-500/50 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] cursor-pointer"
               aria-label="Abrir menú de categorías"
             >
-              <svg className="w-5 h-5 text-cyan-500 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-cyan-500 dark:text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-              <span>Categorías</span>
+              <span className="hidden md:inline">Categorías</span>
             </button>
           </div>
 
@@ -622,7 +622,7 @@ function HomeContent() {
           </div>
 
           {/* Derecha: Saludo Dinámico, ThemeToggle, Mi Cuenta, Panel Admin y Carrito */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0 pr-1 sm:pr-0">
             {/* Saludo Dinámico */}
             <div className="hidden lg:flex flex-col text-right">
               <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
@@ -649,11 +649,11 @@ function HomeContent() {
               </span>
             </Link>
 
-            {/* Botón Admin Panel (Solo visible si el usuario pertenece a Super_Admin o Admin_Tienda) */}
+            {/* Botón Admin Panel (Solo visible en desktop md+ si el usuario pertenece a Super_Admin o Admin_Tienda) */}
             {currentUser.isAdmin && (
               <Link
                 href="/admin"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fuchsia-100 dark:bg-fuchsia-950/80 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 hover:text-fuchsia-900 dark:hover:text-white border border-fuchsia-300 dark:border-fuchsia-700/60 text-xs font-semibold transition-all shadow-sm dark:shadow-[0_0_10px_rgba(217,70,239,0.2)]"
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-fuchsia-100 dark:bg-fuchsia-950/80 hover:bg-fuchsia-200 dark:hover:bg-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-300 hover:text-fuchsia-900 dark:hover:text-white border border-fuchsia-300 dark:border-fuchsia-700/60 text-xs font-semibold transition-all shadow-sm dark:shadow-[0_0_10px_rgba(217,70,239,0.2)]"
                 title="Centro de Control de Administración"
               >
                 <span>👑</span>
@@ -822,48 +822,50 @@ function HomeContent() {
 
         {/* Controles de Navegación del Carrusel (Flechas y Dots) */}
         {heroSlides.length > 1 && (
-          <div className="relative z-20 pb-4 max-w-6xl mx-auto w-full px-4 flex items-center justify-between">
+          <>
             {/* Flecha Izquierda */}
             <button
               type="button"
               onClick={() => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length)}
-              className="p-2 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-2.5 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
               aria-label="Slide anterior"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
 
             {/* Dots Indicadores */}
-            <div className="flex items-center gap-2">
-              {heroSlides.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setCurrentSlide(idx)}
-                  className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
-                    currentSlide === idx
-                      ? 'w-6 bg-gradient-to-r from-cyan-400 to-fuchsia-500 shadow-[0_0_10px_rgba(34,211,238,0.8)]'
-                      : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-500'
-                  }`}
-                  aria-label={`Ir al slide ${idx + 1}`}
-                />
-              ))}
+            <div className="relative z-20 pb-4 max-w-6xl mx-auto w-full px-4 flex items-center justify-center">
+              <div className="flex items-center gap-2">
+                {heroSlides.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCurrentSlide(idx)}
+                    className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                      currentSlide === idx
+                        ? 'w-6 bg-gradient-to-r from-cyan-400 to-fuchsia-500 shadow-[0_0_10px_rgba(34,211,238,0.8)]'
+                        : 'w-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-500'
+                    }`}
+                    aria-label={`Ir al slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
             </div>
 
             {/* Flecha Derecha */}
             <button
               type="button"
               onClick={() => setCurrentSlide((prev) => (prev + 1) % heroSlides.length)}
-              className="p-2 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 p-2 sm:p-2.5 rounded-full bg-white/80 dark:bg-slate-900/80 hover:bg-slate-100 dark:hover:bg-slate-800 text-cyan-600 dark:text-cyan-400 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/50 transition-all cursor-pointer shadow-sm dark:shadow-[0_0_10px_rgba(6,182,212,0.2)]"
               aria-label="Slide siguiente"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
               </svg>
             </button>
-          </div>
+          </>
         )}
       </section>
 

@@ -228,15 +228,19 @@ export function AdminHeader({
 
       <div className="flex flex-wrap items-center gap-3 w-full md:w-auto justify-between md:justify-end">
         {user && (
-          <span className="text-xs font-mono text-slate-300 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm h-fit">
+          <Link
+            href="/cuenta"
+            className="hidden md:flex text-xs font-mono text-slate-300 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/50 px-3 py-1.5 rounded-lg items-center gap-1.5 shadow-sm h-fit transition-colors cursor-pointer"
+            title="Ir a Mi Cuenta / Bóveda"
+          >
             <span className="text-slate-400">👤</span>
             <span className="font-bold text-white">{displayName}</span>
-          </span>
+          </Link>
         )}
 
         {userRole && (
           <span
-            className={`text-xs font-mono font-bold px-3 py-1.5 rounded-lg border flex items-center gap-1.5 h-fit ${
+            className={`hidden sm:flex text-xs font-mono font-bold px-3 py-1.5 rounded-lg border items-center gap-1.5 h-fit ${
               userRole === 'Super_Admin'
                 ? 'bg-fuchsia-950/80 text-fuchsia-300 border-fuchsia-700/60 shadow-[0_0_10px_rgba(217,70,239,0.3)]'
                 : userRole === 'Admin_Tienda'
@@ -258,7 +262,7 @@ export function AdminHeader({
             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-            <span>CERRAR SESIÓN</span>
+            <span className="hidden md:inline">Cerrar Sesión</span>
           </button>
         )}
       </div>

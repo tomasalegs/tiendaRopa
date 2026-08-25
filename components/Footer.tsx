@@ -14,8 +14,8 @@ export default function Footer() {
   return (
     <footer className="bg-slate-900 dark:bg-slate-950 text-slate-300 border-t border-slate-800 transition-colors duration-200 mt-auto">
       {/* Contenido Principal del Footer */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
+      <div className="max-w-7xl mx-auto px-6 py-10 sm:px-8 md:py-12 lg:py-16">
+        <div className="flex flex-col gap-8 md:grid md:grid-cols-4 lg:gap-12">
           
           {/* Columna 1: Brand & Bio */}
           <div className="space-y-4">
@@ -128,14 +128,12 @@ export default function Footer() {
           </div>
 
         </div>
-      </div>
 
-      {/* Franja Inferior (Legales & Redes Sociales) */}
-      <div className="border-t border-slate-800/80 bg-slate-950 py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Último bloque del Footer (Copyright y Legales) */}
+        <div className="border-t border-slate-700/50 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-center">
           
-          {/* LADO IZQUIERDO: Redes Sociales (Facebook, Instagram, TikTok) */}
-          <div className="flex items-center gap-4">
+          {/* LADO IZQUIERDO: Redes Sociales */}
+          <div className="flex items-center gap-4 justify-center">
             <span className="text-xs font-mono text-slate-500 hidden sm:inline">Síguenos:</span>
             
             {/* Facebook SVG */}
@@ -182,7 +180,7 @@ export default function Footer() {
           </div>
 
           {/* LADO DERECHO: Enlaces Legales & Copyright */}
-          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-6 gap-y-2 text-xs text-slate-400 font-sans">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-6 gap-y-2 text-xs text-slate-400 font-sans text-center">
             <Link href="/terminos" className="hover:text-slate-200 transition-colors">
               Términos y condiciones
             </Link>
