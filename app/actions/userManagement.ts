@@ -10,11 +10,30 @@ import {
 import outputs from '@/amplify_outputs.json';
 
 const userPoolId = outputs.auth.user_pool_id;
-const region = outputs.auth.aws_region || 'us-east-1';
+const region = process.env.AWS_REGION || outputs.auth.aws_region || 'us-east-1';
 
-const cognitoClient = new CognitoIdentityProviderClient({
-  region,
-});
+/**
+ * Obtiene una instancia cliente del CognitoIdentityProviderClient.
+ * Si existen credenciales explícitas en las variables de entorno (AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY),
+ * se configuran directamente para permitir la ejecución en entornos de servidor sin IAM Role adjunto.
+ */
+function getCognitoClient(): CognitoIdentityProviderClient {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken = process.env.AWS_SESSION_TOKEN;
+
+  const clientConfig: any = { region };
+
+  if (accessKeyId && secretAccessKey) {
+    clientConfig.credentials = {
+      accessKeyId,
+      secretAccessKey,
+      ...(sessionToken ? { sessionToken } : {}),
+    };
+  }
+
+  return new CognitoIdentityProviderClient(clientConfig);
+}
 
 export type UserRole = 'Super_Admin' | 'Admin_Tienda' | 'Logistica_Operadores' | 'Cliente';
 
@@ -42,6 +61,7 @@ export async function listUsers(): Promise<{ success: boolean; users?: ManagedUs
       throw new Error('User Pool ID no encontrado en la configuración de Amplify.');
     }
 
+    const cognitoClient = getCognitoClient();
     const command = new ListUsersCommand({
       UserPoolId: userPoolId,
       Limit: 60,
@@ -99,9 +119,20 @@ export async function listUsers(): Promise<{ success: boolean; users?: ManagedUs
     return { success: true, users };
   } catch (error: any) {
     console.error('Error al listar usuarios de Cognito:', error);
+    let errorMessage = error?.message || 'Error desconocido al consultar usuarios.';
+
+    if (
+      error?.name === 'CredentialsProviderError' ||
+      errorMessage.includes('Could not load credentials') ||
+      errorMessage.includes('credentials')
+    ) {
+      errorMessage =
+        'Faltan credenciales de AWS en el servidor Node.js. Configura AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY en tu archivo .env.local.';
+    }
+
     return {
       success: false,
-      error: error?.message || 'Error desconocido al consultar usuarios.',
+      error: errorMessage,
     };
   }
 }
@@ -121,6 +152,8 @@ export async function updateUserRole(
     if (!username) {
       throw new Error('El nombre de usuario es obligatorio.');
     }
+
+    const cognitoClient = getCognitoClient();
 
     // 1. Obtener grupos actuales del usuario
     const currentGroupsRes = await cognitoClient.send(
@@ -158,9 +191,20 @@ export async function updateUserRole(
     return { success: true, updatedRole: newRole };
   } catch (error: any) {
     console.error(`Error al actualizar rol de ${username} a ${newRole}:`, error);
+    let errorMessage = error?.message || 'Error al actualizar el rol del usuario.';
+
+    if (
+      error?.name === 'CredentialsProviderError' ||
+      errorMessage.includes('Could not load credentials') ||
+      errorMessage.includes('credentials')
+    ) {
+      errorMessage =
+        'Faltan credenciales de AWS en el servidor Node.js. Configura AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY en tu archivo .env.local.';
+    }
+
     return {
       success: false,
-      error: error?.message || 'Error al actualizar el rol del usuario.',
+      error: errorMessage,
     };
   }
 }

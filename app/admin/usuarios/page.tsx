@@ -59,6 +59,7 @@ export default function AdminUsuariosPage() {
   const [isSuperAdminAuthorized, setIsSuperAdminAuthorized] = useState<boolean>(false);
   const [users, setUsers] = useState<ManagedUser[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [updatingUsername, setUpdatingUsername] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
@@ -68,20 +69,25 @@ export default function AdminUsuariosPage() {
   // Función para cargar los usuarios
   const loadUsersData = async () => {
     setLoading(true);
+    setApiError(null);
     try {
       const response = await listUsers();
       if (response.success && response.users) {
         setUsers(response.users);
       } else {
+        const errMsg = response.error || 'No se pudieron obtener los usuarios de Cognito.';
+        setApiError(errMsg);
         setToast({
           type: 'error',
-          message: response.error || 'No se pudieron obtener los usuarios de Cognito.',
+          message: errMsg,
         });
       }
     } catch (err: any) {
+      const errMsg = err?.message || 'Error al conectar con el servidor.';
+      setApiError(errMsg);
       setToast({
         type: 'error',
-        message: err?.message || 'Error al conectar con el servidor.',
+        message: errMsg,
       });
     } finally {
       setLoading(false);
@@ -263,6 +269,35 @@ export default function AdminUsuariosPage() {
       </div>
 
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Banner de Alerta por Error de Credenciales AWS */}
+        {apiError && (
+          <div className="p-5 rounded-2xl bg-amber-950/90 border border-amber-500/70 text-amber-200 space-y-3 font-sans shadow-[0_0_25px_rgba(245,158,11,0.25)] animate-fadeIn">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <h3 className="font-mono font-bold text-xs sm:text-sm text-amber-300 uppercase tracking-wider">
+                Configuración de Credenciales AWS Requerida
+              </h3>
+            </div>
+            <p className="text-xs text-amber-200/90 leading-relaxed font-mono">
+              {apiError}
+            </p>
+            <div className="pt-1 text-xs font-mono text-amber-300/80 bg-slate-950/70 p-3.5 rounded-xl border border-amber-500/30 space-y-2">
+              <span className="font-bold text-white block">💡 Cómo solucionarlo en entorno de desarrollo local:</span>
+              <p className="text-slate-300">
+                1. Crea o edita el archivo <code className="text-cyan-400 font-bold bg-slate-900 px-1.5 py-0.5 rounded">.env.local</code> en la raíz del proyecto.
+              </p>
+              <p className="text-slate-300">
+                2. Agrega las siguientes llaves de acceso AWS IAM:
+              </p>
+              <div className="bg-slate-900/90 p-3 rounded-lg text-cyan-300 text-[11px] select-all font-mono border border-slate-800 space-y-1">
+                <div>AWS_ACCESS_KEY_ID=tu_access_key_id_aqui</div>
+                <div>AWS_SECRET_ACCESS_KEY=tu_secret_access_key_aqui</div>
+                <div>AWS_REGION=us-east-1</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tarjetas de Métricas de Roles (4 Cards) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 shadow-sm dark:shadow-md flex items-center justify-between">
